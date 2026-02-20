@@ -117,52 +117,27 @@ const ShopView: React.FC<ShopViewProps> = ({ currentUser }) => {
         if (confirmPurchase) {
             setBuyingId(item.id);
             try {
-                // 1. Deduct points
-                const newPoints = member.total_points - item.cost;
-                const { error: updateError } = await supabase
-                    .from('family_members')
-                    .update({ total_points: newPoints })
-                    .eq('id', member.id);
+                const { error: rpcError } = await supabase.rpc('buy_shop_item', {
+                    p_user_id: currentUser.id,
+                    p_item_id: item.id,
+                    p_cost: item.cost
+                });
 
-                if (updateError) throw updateError;
-
-                // 2. Inventory Logic: All functional items and accessories go to inventory
-                // Check if already in inventory to update quantity
-                const { data: existingInv } = await supabase
-                    .from('user_inventory')
-                    .select('id, quantity')
-                    .eq('user_id', currentUser.id)
-                    .eq('item_id', item.id)
-                    .single();
-
-                if (existingInv) {
-                    const { error: invError } = await supabase
-                        .from('user_inventory')
-                        .update({ quantity: (existingInv.quantity || 1) + 1 })
-                        .eq('id', existingInv.id);
-                    if (invError) throw invError;
-                } else {
-                    const { error: invError } = await supabase
-                        .from('user_inventory')
-                        .insert([{
-                            user_id: currentUser.id,
-                            item_id: item.id,
-                            is_equipped: false,
-                            quantity: 1
-                        }]);
-                    if (invError) throw invError;
+                if (rpcError) {
+                    throw rpcError;
                 }
 
-                // 3. Local State Sync
+                // Local State Sync
+                const newPoints = member.total_points - item.cost;
                 setMember({ ...member, total_points: newPoints });
                 if (isOneTime) {
                     setInventory(new Set([...Array.from(inventory), item.id]));
                 }
 
                 alert(`✅ ¡Éxito! Has canjeado "${item.name}". Se ha guardado en tu inventario.`);
-            } catch (error) {
-                console.error('Error in purchase:', error);
-                alert('Hubo un error al procesar tu compra.');
+            } catch (error: any) {
+                console.error('Error detallado en la compra (Supabase):', error);
+                alert(`Hubo un error al procesar tu compra: ${error.message || 'Error desconocido'}`);
             } finally {
                 setBuyingId(null);
             }
