@@ -52,30 +52,37 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
         }
     };
 
-    // Determine the background to show
+    // Fondo: Determine the background to show
     const bgImage = equippedBackground ? equippedBackground.metadata?.value || equippedBackground.icon : member.selected_background;
     const hasBgImage = !!bgImage && String(bgImage).startsWith('http');
 
+    // Lógica de Clasificación Inteligente
+    const isHeadGroup = (item: Accessory) => {
+        const name = item.metadata?.name || item.category || '';
+        const lowerName = name.toLowerCase();
+        return ['hat', 'crown'].includes(item.category) || lowerName.includes('gorra') || lowerName.includes('gorro') || lowerName.includes('corona');
+    };
+
+    const headAccessories = equippedAccessories.filter(isHeadGroup);
+    const sideAccessories = equippedAccessories.filter(item => !isHeadGroup(item));
+
     return (
-        <div className="flex flex-col items-center gap-3">
+        <div className="relative flex justify-center items-center w-full">
             <motion.div
                 whileHover={isInteractive ? { scale: 1.05, y: -5 } : {}}
                 whileTap="tap"
                 variants={containerVariants}
                 onClick={onClick}
-                // Contenedor de la Mascota (Maneja el Fondo)
+                // Fondo Completo en el Contenedor de la Mascota
                 className={`relative flex items-center justify-center cursor-pointer transition-all border-2 border-white dark:border-slate-800 shadow-sm overflow-hidden ${fullBody ? 'rounded-[2rem] aspect-[3/4] h-auto' : 'rounded-full h-auto aspect-square'} ${sizeClasses[size]}`}
                 style={{
-                    backgroundColor: hasBgImage ? 'transparent' : (bgImage || 'rgba(var(--color-primary), 0.1)')
+                    backgroundColor: hasBgImage ? 'transparent' : (bgImage || 'rgba(var(--color-primary), 0.1)'),
+                    backgroundImage: hasBgImage ? `url(${bgImage})` : 'none',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center'
                 }}
             >
-                {/* Capa de Fondo (backgroundImage) */}
-                {hasBgImage && (
-                    <div
-                        className="absolute inset-0 z-0 bg-cover bg-center"
-                        style={{ backgroundImage: `url(${bgImage})` }}
-                    />
-                )}
+                {/* Fallback de emoji para el fondo si no es URL */}
                 {!hasBgImage && bgImage && !String(bgImage).startsWith('http') && (
                     <div className="absolute inset-0 z-0 flex items-center justify-center opacity-50 text-6xl pointer-events-none">
                         {bgImage}
@@ -117,6 +124,22 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
                     </div>
                 )}
 
+                {/* Posicionamiento en la Cabeza (Grupo Cabeza) */}
+                {headAccessories.map((acc) => (
+                    <div
+                        key={acc.id}
+                        className="absolute z-20 pointer-events-none flex justify-center items-center drop-shadow-md"
+                        // Aplicando el estilo exacto que pediste
+                        style={{ top: '-15%', left: '50%', transform: 'translateX(-50%)', width: '50%' }}
+                    >
+                        {acc.icon.startsWith('http') ? (
+                            <img src={acc.icon} alt={acc.category} className="w-full h-auto object-contain" />
+                        ) : (
+                            <span style={{ fontSize: '100%' }}>{acc.icon}</span>
+                        )}
+                    </div>
+                ))}
+
                 {/* Badge de Escudos */}
                 {(member.shield_hp || 0) > 0 && (
                     <div className="absolute top-1 right-1 z-30 bg-blue-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full border-2 border-white shadow-md flex items-center gap-0.5 scale-90 origin-top-right">
@@ -126,10 +149,10 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
                 )}
             </motion.div>
 
-            {/* Panel de Accesorios (Abajo de la mascota) */}
-            {equippedAccessories.length > 0 && (
-                <div className="flex flex-wrap gap-2 justify-center mt-1">
-                    {equippedAccessories.map((acc) => (
+            {/* Posicionamiento a un Lado (Grupo Lado) */}
+            {sideAccessories.length > 0 && (
+                <div style={{ position: 'absolute', right: '5%', top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {sideAccessories.map((acc) => (
                         <div
                             key={acc.id}
                             className="w-10 h-10 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-center overflow-hidden"
