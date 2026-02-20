@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+}
+
+/* Custom scrollbar hiding */
+.no-scrollbar::-webkit-scrollbar, .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar, .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.font-fill {
+    font-variation-settings: 'FILL' 1;
+}
+
+body {
+    min-height: 100vh;
+    min-height: 100dvh;
+}
