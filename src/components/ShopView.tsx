@@ -69,7 +69,7 @@ const ShopView: React.FC<ShopViewProps> = ({ currentUser }) => {
             .order('cost', { ascending: true });
 
         const { data: inventoryData } = await supabase
-            .from('user_inventory')
+            .from('user_items')
             .select('item_id')
             .eq('user_id', currentUser.id);
 
@@ -117,18 +117,32 @@ const ShopView: React.FC<ShopViewProps> = ({ currentUser }) => {
         if (confirmPurchase) {
             setBuyingId(item.id);
             try {
-                const { error: rpcError } = await supabase.rpc('buy_shop_item', {
-                    p_user_id: member.id,
-                    p_item_id: item.id,
-                    p_cost: item.cost
-                });
+                // 1. Deduct points via update
+                const newPoints = member.total_points - item.cost;
+                const { error: updateError } = await supabase
+                    .from('family_members')
+                    .update({ total_points: newPoints })
+                    .eq('id', member.id);
 
-                if (rpcError) {
-                    throw rpcError;
+                if (updateError) throw updateError;
+
+                // 2. Insert into user_items
+                const isCosmetic = ['hat', 'lenses', 'crown', 'cape', 'skin', 'background', 'nickname'].includes(item.category);
+
+                const { error: invError } = await supabase
+                    .from('user_items')
+                    .insert([{
+                        user_id: currentUser.id, // O auth.uid()
+                        item_id: item.id,
+                        tipo: isCosmetic ? 'cosmetico' : 'poder',
+                        equipado: false
+                    }]);
+
+                if (invError) {
+                    throw invError;
                 }
 
                 // Local State Sync
-                const newPoints = member.total_points - item.cost;
                 setMember({ ...member, total_points: newPoints });
                 if (isOneTime) {
                     setInventory(new Set([...Array.from(inventory), item.id]));

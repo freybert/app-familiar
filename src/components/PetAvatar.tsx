@@ -52,11 +52,11 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
 
     const getPositionStyle = (category: string) => {
         switch (category) {
-            case 'hat': return { top: '-25%', left: '0%', zIndex: 30 };
-            case 'crown': return { top: '-30%', left: '0%', zIndex: 30 };
-            case 'lenses': return { top: '5%', left: '0%', zIndex: 30 };
+            case 'hat': return { top: '-25%', left: '0%', zIndex: 10 };
+            case 'crown': return { top: '-30%', left: '0%', zIndex: 10 };
+            case 'lenses': return { top: '5%', left: '0%', zIndex: 10 };
             case 'cape': return { top: '10%', left: '-15%', zIndex: 5 }; // Behind the pet slightly or below
-            default: return { top: '0', left: '0', zIndex: 20 };
+            default: return { top: '0', left: '0', zIndex: 10 };
         }
     };
 

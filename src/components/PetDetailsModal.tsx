@@ -52,7 +52,7 @@ const PetDetailsModal: React.FC<PetDetailsModalProps> = ({ member, isOpen, onClo
     const fetchInventory = async () => {
         setLoading(true);
         const { data: invData } = await supabase
-            .from('user_inventory')
+            .from('user_items')
             .select(`
                 *,
                 shop_items (*)
@@ -68,8 +68,8 @@ const PetDetailsModal: React.FC<PetDetailsModalProps> = ({ member, isOpen, onClo
                 icon: inv.shop_items.icon,
                 category: inv.shop_items.category,
                 metadata: inv.shop_items.metadata,
-                is_equipped: inv.is_equipped,
-                quantity: inv.quantity || 1
+                is_equipped: inv.equipado, // Mapped to the new SQL column
+                quantity: 1 // Single row instances now
             }));
             setInventory(items);
         }
@@ -120,12 +120,8 @@ const PetDetailsModal: React.FC<PetDetailsModalProps> = ({ member, isOpen, onClo
                 }
             }
 
-            // 2. Consume Item (Decrement quantity or delete)
-            if (invItem.quantity > 1) {
-                await supabase.from('user_inventory').update({ quantity: invItem.quantity - 1 }).eq('id', invItem.id);
-            } else {
-                await supabase.from('user_inventory').delete().eq('id', invItem.id);
-            }
+            // 2. Consume Item (Delete row)
+            await supabase.from('user_items').delete().eq('id', invItem.id);
 
             fetchInventory(); // Refresh everything
         } catch (error) {
@@ -164,13 +160,13 @@ const PetDetailsModal: React.FC<PetDetailsModalProps> = ({ member, isOpen, onClo
 
         // If background or skin, unequip others first
         if (newEquipped && ['background', 'skin'].includes(category)) {
-            await supabase.from('user_inventory').update({ is_equipped: false }).eq('user_id', member.id);
+            await supabase.from('user_items').update({ equipado: false }).eq('user_id', member.id);
             // Re-fetch or local update will be needed, for now just update this one
         }
 
         const { error } = await supabase
-            .from('user_inventory')
-            .update({ is_equipped: newEquipped })
+            .from('user_items')
+            .update({ equipado: newEquipped })
             .eq('id', itemId);
 
         if (!error) {

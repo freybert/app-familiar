@@ -207,8 +207,8 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
 
         // 1. Check for Joker in inventory
         const { data: joker } = await supabase
-            .from('user_inventory')
-            .select('id, quantity, shop_items(name)')
+            .from('user_items')
+            .select('id, shop_items!inner(name)')
             .eq('user_id', currentUser.id)
             .ilike('shop_items.name', '%Comodín%')
             .limit(1)
@@ -220,12 +220,8 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
         }
 
         if (window.confirm('¿Quieres usar 1 Comodín para perdonar esta tarea? No ganarás puntos, pero no habrá penalización.')) {
-            // 2. Consume Joker
-            if ((joker as any).quantity > 1) {
-                await supabase.from('user_inventory').update({ quantity: (joker as any).quantity - 1 }).eq('id', joker.id);
-            } else {
-                await supabase.from('user_inventory').delete().eq('id', joker.id);
-            }
+            // 2. Consume Joker (Delete single instance row)
+            await supabase.from('user_items').delete().eq('id', joker.id);
 
             // 3. Mark task as completed (forgiven)
             await supabase.from('tasks').update({ is_completed: true }).eq('id', task.id);
