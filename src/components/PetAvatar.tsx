@@ -34,6 +34,8 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
     // Clasificar el inventario equipado en fondos y accesorios
     const equippedAccessories = member.inventory?.filter(item => item.is_equipped && ['hat', 'lenses', 'crown', 'cape'].includes(item.category)) || [];
     const equippedBackground = member.inventory?.find(item => item.is_equipped && item.category === 'background');
+    const equippedSkin = member.inventory?.find(item => item.is_equipped && item.category === 'skin');
+    const equippedVFX = member.inventory?.find(item => item.is_equipped && item.category === 'vfx');
 
     const sizeClasses = {
         sm: 'w-10 h-10 text-xl',
@@ -139,6 +141,28 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
                         )}
                     </div>
                 ))}
+
+                {/* Capa de Evolución (Skin) con mix-blend-mode: screen */}
+                {equippedSkin && (
+                    <div className="absolute inset-0 z-[25] w-full h-full pointer-events-none flex items-center justify-center opacity-90" style={{ mixBlendMode: 'screen' }}>
+                        {equippedSkin.icon.startsWith('http') ? (
+                            <img src={equippedSkin.icon} alt={equippedSkin.category} className="w-full h-full object-cover" />
+                        ) : (
+                            <span className="text-[3em]">{equippedSkin.icon}</span>
+                        )}
+                    </div>
+                )}
+
+                {/* Capa de Efectos (VFX) separada */}
+                {equippedVFX && (
+                    <div className="absolute inset-0 z-[26] w-full h-full pointer-events-none flex items-center justify-center">
+                        {equippedVFX.icon.startsWith('http') ? (
+                            <img src={equippedVFX.icon} alt={equippedVFX.category} className="w-full h-full object-cover opacity-80" />
+                        ) : (
+                            <span className="text-[3em] opacity-80 animate-pulse">{equippedVFX.icon}</span>
+                        )}
+                    </div>
+                )}
 
                 {/* Badge de Escudos */}
                 {(member.shield_hp || 0) > 0 && (

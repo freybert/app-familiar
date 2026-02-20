@@ -29,7 +29,6 @@ const CATEGORIES = [
     { id: 'hat', label: 'Sombreros', icon: 'hat' },
     { id: 'lenses', label: 'Lentes', icon: 'visibility' },
     { id: 'crown', label: 'Coronas', icon: 'workspace_premium' },
-    { id: 'cape', label: 'Capas', icon: 'layers' },
     { id: 'background', label: 'Fondos', icon: 'image' },
     { id: 'skin', label: 'Evoluciones', icon: 'auto_fix_high' },
     { id: 'travesura', label: 'Travesuras', icon: 'psychology_alt' },
@@ -158,6 +157,32 @@ const ShopView: React.FC<ShopViewProps> = ({ currentUser }) => {
         }
     };
 
+    const handleEditPrice = async (item: ShopItem) => {
+        const newCostStr = window.prompt(`Ingresa el nuevo precio para "${item.name}":`, item.cost.toString());
+        if (!newCostStr) return; // Cancelado
+
+        const newCost = parseInt(newCostStr, 10);
+        if (isNaN(newCost) || newCost < 0) {
+            alert('Por favor inserta un número válido.');
+            return;
+        }
+
+        try {
+            const { error } = await supabase
+                .from('shop_items')
+                .update({ cost: newCost })
+                .eq('id', item.id);
+
+            if (error) throw error;
+
+            // Refrescar para ver el nuevo precio (el useEffect con channel también debería dispararse)
+            fetchData();
+        } catch (error: any) {
+            console.error('Error actualizando precio:', error);
+            alert('Hubo un error al intentar cambiar el precio.');
+        }
+    };
+
     const filteredItems = selectedCategory === 'all'
         ? items
         : items.filter(i => i.category === selectedCategory);
@@ -243,9 +268,20 @@ const ShopView: React.FC<ShopViewProps> = ({ currentUser }) => {
                                 </div>
 
                                 <div className="mt-auto flex items-center justify-between gap-4 pt-4 border-t border-slate-50 dark:border-slate-700">
-                                    <div className="flex flex-col">
-                                        <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1">Inversión</p>
-                                        <p className="text-xl font-black text-slate-900 dark:text-slate-100 leading-none">🪙 {item.cost}</p>
+                                    <div className="flex block items-end gap-2">
+                                        <div className="flex flex-col">
+                                            <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1">Inversión</p>
+                                            <p className="text-xl font-black text-slate-900 dark:text-slate-100 leading-none">🪙 {item.cost}</p>
+                                        </div>
+                                        {currentUser.is_admin && (
+                                            <button
+                                                onClick={() => handleEditPrice(item)}
+                                                className="mb-[2px] w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                                                title="Administrador: Editar Precio"
+                                            >
+                                                <span className="material-symbols-outlined text-[14px] text-slate-500">edit</span>
+                                            </button>
+                                        )}
                                     </div>
                                     <button
                                         onClick={() => handleBuy(item)}
