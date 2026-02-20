@@ -24,6 +24,13 @@ interface FamilyGoal {
     status: string;
 }
 
+interface Medal {
+    id: string;
+    nombre: string;
+    imagen_url: string;
+    descripcion: string;
+}
+
 const AVATAR_OPTIONS = [
     "https://img.icons8.com/fluency/96/lion.png",
     "https://img.icons8.com/fluency/96/bear.png",
@@ -45,6 +52,7 @@ interface FamilyManagementProps {
 const FamilyManagement: React.FC<FamilyManagementProps> = ({ currentUser }) => {
     const [members, setMembers] = useState<Member[]>([]);
     const [goals, setGoals] = useState<FamilyGoal[]>([]);
+    const [availableMedals, setAvailableMedals] = useState<Medal[]>([]);
     const [activeGoal, setActiveGoal] = useState<FamilyGoal | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -62,6 +70,13 @@ const FamilyManagement: React.FC<FamilyManagementProps> = ({ currentUser }) => {
     const [editingMember, setEditingMember] = useState<Member | null>(null);
     const [newPointValue, setNewPointValue] = useState<string>('');
 
+    // Admin Medals
+    const [newMedalName, setNewMedalName] = useState('');
+    const [newMedalImg, setNewMedalImg] = useState('');
+    const [newMedalDesc, setNewMedalDesc] = useState('');
+    const [selectedUserForMedal, setSelectedUserForMedal] = useState('');
+    const [selectedMedalId, setSelectedMedalId] = useState('');
+
     useEffect(() => {
         fetchData();
 
@@ -69,6 +84,7 @@ const FamilyManagement: React.FC<FamilyManagementProps> = ({ currentUser }) => {
             .channel('family_admin_changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'family_members' }, () => fetchData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'family_goals' }, () => fetchData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'medallas' }, () => fetchData())
             .subscribe();
 
         return () => {
@@ -97,6 +113,15 @@ const FamilyManagement: React.FC<FamilyManagementProps> = ({ currentUser }) => {
             setGoals(goalsData);
             const active = goalsData.find(g => g.is_active);
             setActiveGoal(active || null);
+        }
+
+        const { data: medalsData } = await supabase
+            .from('medallas')
+            .select('*')
+            .order('nombre');
+
+        if (medalsData) {
+            setAvailableMedals(medalsData);
         }
 
         setLoading(false);
@@ -236,6 +261,36 @@ const FamilyManagement: React.FC<FamilyManagementProps> = ({ currentUser }) => {
         setNewGoalTitle('');
         setNewGoalPoints('500');
         setNewGoalEmoji('🏆');
+    };
+
+    const createMedal = async () => {
+        if (!newMedalName.trim() || !newMedalImg.trim()) return;
+        const { error } = await supabase.from('medallas').insert([{
+            nombre: newMedalName,
+            imagen_url: newMedalImg,
+            descripcion: newMedalDesc
+        }]);
+        if (error) console.error('Error creating medal', error);
+        else {
+            setNewMedalName(''); setNewMedalImg(''); setNewMedalDesc('');
+            fetchData();
+        }
+    };
+
+    const grantMedal = async () => {
+        if (!selectedUserForMedal || !selectedMedalId) return;
+        const { error } = await supabase.from('usuario_medallas').insert([{
+            user_id: selectedUserForMedal,
+            medalla_id: selectedMedalId
+        }]);
+        if (error) {
+            console.error('Error granting medal', error);
+            if (error.code === '23505') alert('El usuario ya tiene esta medalla.');
+        } else {
+            alert('¡Medalla otorgada!');
+            setSelectedUserForMedal('');
+            setSelectedMedalId('');
+        }
     };
 
     return (
@@ -506,6 +561,81 @@ const FamilyManagement: React.FC<FamilyManagementProps> = ({ currentUser }) => {
                                 <span className="material-symbols-outlined">person_add</span>
                                 Añadir a la Familia
                             </button>
+                        </div>
+                    </section>
+                )}
+
+                {/* Medals Admin Section (Admin Only) */}
+                {isAdmin && (
+                    <section className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 mt-8">
+                        <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-6">Sistema de Medallas (Admin)</h2>
+                        <div className="space-y-8">
+
+                            {/* Crear Medalla */}
+                            <div className="space-y-4">
+                                <h3 className="text-xs font-bold text-slate-400 uppercase">Crear Nueva Medalla</h3>
+                                <input
+                                    value={newMedalName}
+                                    onChange={(e) => setNewMedalName(e.target.value)}
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 focus:ring-2 focus:ring-primary font-medium"
+                                    placeholder="Nombre (*obligatorio)"
+                                />
+                                <input
+                                    value={newMedalImg}
+                                    onChange={(e) => setNewMedalImg(e.target.value)}
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 focus:ring-2 focus:ring-primary font-medium"
+                                    placeholder="URL de Imagen o Emoji (*obligatorio)"
+                                />
+                                <input
+                                    value={newMedalDesc}
+                                    onChange={(e) => setNewMedalDesc(e.target.value)}
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 focus:ring-2 focus:ring-primary font-medium"
+                                    placeholder="Descripción (opcional)"
+                                />
+                                <button
+                                    onClick={createMedal}
+                                    disabled={!newMedalName.trim() || !newMedalImg.trim()}
+                                    className="w-full bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 text-yellow-900 border border-yellow-500 font-bold py-3 rounded-xl shadow-sm flex items-center justify-center gap-2"
+                                >
+                                    <span className="material-symbols-outlined">workspace_premium</span>
+                                    Crear Medalla
+                                </button>
+                            </div>
+
+                            <hr className="border-slate-100 dark:border-slate-700" />
+
+                            {/* Otorgar Medalla */}
+                            <div className="space-y-4">
+                                <h3 className="text-xs font-bold text-slate-400 uppercase">Otorgar Medalla</h3>
+                                <select
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 focus:ring-2 focus:ring-primary font-medium text-slate-500"
+                                    value={selectedUserForMedal}
+                                    onChange={(e) => setSelectedUserForMedal(e.target.value)}
+                                >
+                                    <option value="">Selecciona Miembro...</option>
+                                    {members.map(m => (
+                                        <option key={m.id} value={m.id}>{m.name}</option>
+                                    ))}
+                                </select>
+                                <select
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 focus:ring-2 focus:ring-primary font-medium text-slate-500"
+                                    value={selectedMedalId}
+                                    onChange={(e) => setSelectedMedalId(e.target.value)}
+                                >
+                                    <option value="">Selecciona Medalla...</option>
+                                    {availableMedals.map(m => (
+                                        <option key={m.id} value={m.id}>{m.nombre}</option>
+                                    ))}
+                                </select>
+                                <button
+                                    onClick={grantMedal}
+                                    disabled={!selectedUserForMedal || !selectedMedalId}
+                                    className="w-full bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-emerald flex items-center justify-center gap-2"
+                                >
+                                    <span className="material-symbols-outlined">auto_awesome</span>
+                                    Otorgar
+                                </button>
+                            </div>
                         </div>
                     </section>
                 )}

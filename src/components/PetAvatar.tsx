@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { supabase } from '../lib/supabase';
 
 interface Accessory {
     id: string;
@@ -30,7 +31,50 @@ interface PetAvatarProps {
     fullBody?: boolean;
 }
 
+interface Medal {
+    id: string;
+    nombre: string;
+    imagen_url: string;
+    descripcion: string;
+}
+
 const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isInteractive = true, fullBody = false }) => {
+    const [medallas, setMedallas] = useState<Medal[]>([]);
+
+    useEffect(() => {
+        if (!member?.id) return;
+
+        const fetchMedallas = async () => {
+            const { data, error } = await supabase
+                .from('usuario_medallas')
+                .select(`
+                    medallas (
+                        id,
+                        nombre,
+                        imagen_url,
+                        descripcion
+                    )
+                `)
+                .eq('user_id', member.id);
+
+            if (data && !error) {
+                // Supabase types might infer row.medallas as an array depending on the schema generation
+                const meds = data.flatMap(row => row.medallas) as unknown as Medal[];
+                setMedallas(meds.filter(Boolean));
+            }
+        };
+
+        fetchMedallas();
+
+        const channel = supabase.channel(`medals_${member.id}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'usuario_medallas', filter: `user_id=eq.${member.id}` }, fetchMedallas)
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [member?.id]);
+
     // Clasificar el inventario equipado en fondos y accesorios
     const equippedAccessories = member.inventory?.filter(item => item.is_equipped && ['hat', 'lenses', 'crown', 'cape'].includes(item.category)) || [];
     const equippedBackground = member.inventory?.find(item => item.is_equipped && item.category === 'background');
@@ -56,7 +100,7 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
 
     // Fondo: Determine the background to show
     const bgImage = equippedBackground ? equippedBackground.metadata?.value || equippedBackground.icon : member.selected_background;
-    const hasBgImage = !!bgImage && String(bgImage).startsWith('http');
+    const fondoUrl = !!bgImage && String(bgImage).startsWith('http') ? String(bgImage) : null;
 
     // Lógica de Clasificación Inteligente
     const isHeadGroup = (item: Accessory) => {
@@ -70,22 +114,33 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
 
     return (
         <div className="relative flex justify-center items-center w-full">
+            {/* Medallas Izquierda */}
+            {medallas.length > 0 && (
+                <div className="absolute -left-5 sm:-left-12 flex flex-col gap-1 z-30 drop-shadow-md">
+                    {medallas.filter((_, idx) => idx % 2 === 0).map(m => (
+                        <div key={m.id} title={`${m.nombre} - ${m.descripcion}`} className="w-6 h-6 sm:w-8 sm:h-8 hover:scale-110 transition-transform cursor-help">
+                            {m.imagen_url.startsWith('http') ? <img src={m.imagen_url} alt={m.nombre} className="w-full h-full object-contain" /> : <span className="text-xl sm:text-2xl">{m.imagen_url}</span>}
+                        </div>
+                    ))}
+                </div>
+            )}
+
             <motion.div
                 whileHover={isInteractive ? { scale: 1.05, y: -5 } : {}}
                 whileTap="tap"
                 variants={containerVariants}
                 onClick={onClick}
                 // Fondo Completo en el Contenedor de la Mascota
-                className={`relative flex items-center justify-center cursor-pointer transition-all border-2 border-white dark:border-slate-800 shadow-sm overflow-hidden ${fullBody ? 'rounded-[2rem] aspect-[3/4] h-auto' : 'rounded-full h-auto aspect-square'} ${sizeClasses[size]}`}
+                // Eliminados border-white dark:border-slate-800 bg colores sólidos si hay imagen.
+                className={`relative flex items-center justify-center cursor-pointer transition-all border-2 shadow-sm overflow-hidden ${fondoUrl ? 'border-transparent' : 'border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800'} ${fullBody ? 'rounded-[2rem] aspect-[3/4] h-auto' : 'rounded-full h-auto aspect-square'} ${sizeClasses[size]}`}
                 style={{
-                    backgroundColor: hasBgImage ? 'transparent' : (bgImage || 'rgba(var(--color-primary), 0.1)'),
-                    backgroundImage: hasBgImage ? `url(${bgImage})` : 'none',
+                    backgroundImage: fondoUrl ? `url('${fondoUrl}')` : 'none',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center'
                 }}
             >
                 {/* Fallback de emoji para el fondo si no es URL */}
-                {!hasBgImage && bgImage && !String(bgImage).startsWith('http') && (
+                {!fondoUrl && bgImage && !String(bgImage).startsWith('http') && (
                     <div className="absolute inset-0 z-0 flex items-center justify-center opacity-50 text-6xl pointer-events-none">
                         {bgImage}
                     </div>
@@ -163,23 +218,34 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
                         )}
                     </div>
                 )}
-
-                {/* Badge de Escudos */}
-                {(member.shield_hp || 0) > 0 && (
-                    <div className="absolute top-1 right-1 z-30 bg-blue-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full border-2 border-white shadow-md flex items-center gap-0.5 scale-90 origin-top-right">
-                        <span>🛡️</span>
-                        <span>x{member.shield_hp}</span>
-                    </div>
-                )}
             </motion.div>
+
+            {/* Panel de Escudo, separado para no obstruir (Badge de Escudos) */}
+            {(member.shield_hp || 0) > 0 && (
+                <div className="absolute top-1 right-1 z-[40] bg-blue-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-md flex items-center gap-0.5 origin-top-right">
+                    <span>🛡️</span>
+                    <span>x{member.shield_hp}</span>
+                </div>
+            )}
+
+            {/* Medallas Derecha */}
+            {medallas.length > 1 && (
+                <div className="absolute -right-5 sm:-right-12 flex flex-col gap-1 z-30 drop-shadow-md">
+                    {medallas.filter((_, idx) => idx % 2 !== 0).map(m => (
+                        <div key={m.id} title={`${m.nombre} - ${m.descripcion}`} className="w-6 h-6 sm:w-8 sm:h-8 hover:scale-110 transition-transform cursor-help">
+                            {m.imagen_url.startsWith('http') ? <img src={m.imagen_url} alt={m.nombre} className="w-full h-full object-contain" /> : <span className="text-xl sm:text-2xl">{m.imagen_url}</span>}
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Posicionamiento a un Lado (Grupo Lado) */}
             {sideAccessories.length > 0 && (
-                <div style={{ position: 'absolute', right: '5%', top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ position: 'absolute', right: '5%', top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: '8px', zIndex: 40 }}>
                     {sideAccessories.map((acc) => (
                         <div
                             key={acc.id}
-                            className="w-10 h-10 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-center overflow-hidden"
+                            className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-center overflow-hidden"
                             title={acc.category}
                         >
                             {acc.icon.startsWith('http') ? (
@@ -189,7 +255,7 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
                                     className="w-3/4 h-3/4 object-contain drop-shadow-md"
                                 />
                             ) : (
-                                <span className="text-xl drop-shadow-md">
+                                <span className="text-lg sm:text-xl drop-shadow-md">
                                     {acc.icon}
                                 </span>
                             )}
