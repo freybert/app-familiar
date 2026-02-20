@@ -30,6 +30,82 @@ interface PetAvatarProps {
     fullBody?: boolean;
 }
 
+// --- DICCIONARIO DE PUNTOS DE ANCLAJE (ANCHOR POINTS) ---
+// Aquí puedes configurar exactamente dónde va cada accesorio para cada tipo de mascota.
+// La llave principal (ej. 'gato', 'perro', 'default') debe coincidir con member.selected_skin o el avatar_url.
+const anchorPoints: Record<string, Record<string, { top: string, left: string, width: string, rotate?: string, zIndex: number }>> = {
+    // Configuraciones por defecto
+    default: {
+        hat: { top: '-10%', left: '25%', width: '50%', rotate: '0', zIndex: 20 },
+        crown: { top: '-15%', left: '30%', width: '40%', rotate: '0', zIndex: 20 },
+        lenses: { top: '35%', left: '20%', width: '60%', rotate: '0', zIndex: 20 },
+        cape: { top: '50%', left: '10%', width: '80%', rotate: '0', zIndex: 5 },
+    },
+    // León
+    'https://img.icons8.com/fluency/96/lion.png': {
+        hat: { top: '-15%', left: '30%', width: '40%', rotate: '0', zIndex: 20 },
+        lenses: { top: '40%', left: '25%', width: '50%', rotate: '0', zIndex: 20 },
+        crown: { top: '-20%', left: '35%', width: '30%', rotate: '0', zIndex: 20 },
+        cape: { top: '60%', left: '0%', width: '100%', rotate: '0', zIndex: 5 }
+    },
+    // Oso
+    'https://img.icons8.com/fluency/96/bear.png': {
+        hat: { top: '-10%', left: '32%', width: '36%', rotate: '0', zIndex: 20 },
+        lenses: { top: '38%', left: '26%', width: '48%', rotate: '0', zIndex: 20 },
+        crown: { top: '-16%', left: '35%', width: '30%', rotate: '0', zIndex: 20 },
+        cape: { top: '55%', left: '5%', width: '90%', rotate: '0', zIndex: 5 }
+    },
+    // Gato
+    'https://img.icons8.com/fluency/96/cat.png': {
+        hat: { top: '-5%', left: '30%', width: '40%', rotate: '0', zIndex: 20 },
+        lenses: { top: '40%', left: '20%', width: '60%', rotate: '0', zIndex: 20 },
+        crown: { top: '-12%', left: '35%', width: '30%', rotate: '0', zIndex: 20 },
+        cape: { top: '50%', left: '0%', width: '100%', rotate: '0', zIndex: 5 }
+    },
+    // Perro
+    'https://img.icons8.com/fluency/96/dog.png': {
+        hat: { top: '-8%', left: '25%', width: '50%', rotate: '0', zIndex: 20 },
+        lenses: { top: '35%', left: '15%', width: '70%', rotate: '0', zIndex: 20 },
+        crown: { top: '-15%', left: '30%', width: '40%', rotate: '0', zIndex: 20 },
+        cape: { top: '50%', left: '5%', width: '90%', rotate: '0', zIndex: 5 }
+    },
+    // Conejo
+    'https://img.icons8.com/fluency/96/rabbit.png': {
+        hat: { top: '-5%', left: '35%', width: '30%', rotate: '0', zIndex: 20 },
+        lenses: { top: '45%', left: '28%', width: '44%', rotate: '0', zIndex: 20 },
+        crown: { top: '-2%', left: '40%', width: '20%', rotate: '0', zIndex: 20 },
+        cape: { top: '65%', left: '10%', width: '80%', rotate: '0', zIndex: 5 }
+    },
+    // Panda
+    'https://img.icons8.com/fluency/96/panda.png': {
+        hat: { top: '-12%', left: '30%', width: '40%', rotate: '0', zIndex: 20 },
+        lenses: { top: '42%', left: '20%', width: '60%', rotate: '0', zIndex: 20 },
+        crown: { top: '-18%', left: '35%', width: '30%', rotate: '0', zIndex: 20 },
+        cape: { top: '60%', left: '0%', width: '100%', rotate: '0', zIndex: 5 }
+    },
+    // Zorro
+    'https://img.icons8.com/fluency/96/fox.png': {
+        hat: { top: '-5%', left: '32%', width: '36%', rotate: '0', zIndex: 20 },
+        lenses: { top: '40%', left: '15%', width: '70%', rotate: '0', zIndex: 20 },
+        crown: { top: '-15%', left: '35%', width: '30%', rotate: '0', zIndex: 20 },
+        cape: { top: '55%', left: '-5%', width: '110%', rotate: '0', zIndex: 5 }
+    },
+    // Koala
+    'https://img.icons8.com/fluency/96/koala.png': {
+        hat: { top: '-10%', left: '25%', width: '50%', rotate: '0', zIndex: 20 },
+        lenses: { top: '40%', left: '15%', width: '70%', rotate: '0', zIndex: 20 },
+        crown: { top: '-15%', left: '30%', width: '40%', rotate: '0', zIndex: 20 },
+        cape: { top: '60%', left: '0%', width: '100%', rotate: '0', zIndex: 5 }
+    },
+    // Serpiente
+    'https://img.icons8.com/fluency/96/snake.png': {
+        hat: { top: '-10%', left: '40%', width: '25%', rotate: '0', zIndex: 20 },
+        lenses: { top: '25%', left: '35%', width: '35%', rotate: '0', zIndex: 20 },
+        crown: { top: '-15%', left: '42%', width: '20%', rotate: '0', zIndex: 20 },
+        cape: { top: '40%', left: '20%', width: '60%', rotate: '0', zIndex: 5 }
+    }
+};
+
 const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isInteractive = true, fullBody = false }) => {
     const equippedAccessories = member.inventory?.filter(item => item.is_equipped && ['hat', 'lenses', 'crown', 'cape'].includes(item.category)) || [];
     const equippedBackground = member.inventory?.find(item => item.is_equipped && item.category === 'background');
@@ -51,20 +127,15 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
         }
     };
 
-    const getPositionStyle = (category: string) => {
-        switch (category) {
-            case 'hat': return { top: '-25%', left: '0%', zIndex: 10 };
-            case 'crown': return { top: '-30%', left: '0%', zIndex: 10 };
-            case 'lenses': return { top: '5%', left: '0%', zIndex: 10 };
-            case 'cape': return { top: '10%', left: '-15%', zIndex: 5 }; // Behind the pet slightly or below
-            default: return { top: '0', left: '0', zIndex: 10 };
-        }
-    };
-
     // Determine the background to show. If an item is equipped, use its icon (which should be an image URL for backgrounds). 
     // Otherwise fallback to selected_background string.
     const bgImage = equippedBackground ? equippedBackground.metadata?.value || equippedBackground.icon : member.selected_background;
     const hasBgImage = !!bgImage && String(bgImage).startsWith('http');
+
+    // Detectar el tipo de mascota actual para buscar sus Anclas. 
+    // Usaremos el selected_skin o el avatar_url.
+    const petIdentifier = member.selected_skin || member.avatar_url || 'default';
+    const currentPetAnchors = anchorPoints[petIdentifier] || anchorPoints['default'];
 
     return (
         <motion.div
@@ -119,20 +190,32 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
                 )}
             </div>
 
-            {/* CAPA 3 (Objetos/Ropa) - position: absolute, z-index: 20 */}
+            {/* CAPA 3 (Objetos/Ropa) - Anclajes Dinámicos */}
             <div className="absolute inset-0 z-20 pointer-events-none">
                 {equippedAccessories.map((acc) => {
-                    // Mantenemos la lógica de posicionado absoluto según la categoría
-                    const pos = getPositionStyle(acc.category);
+                    // Leemos el anclaje específico para esta categoría (o usamos valores por defecto seguros)
+                    const anchor = currentPetAnchors[acc.category] || anchorPoints['default'][acc.category] || { top: '0%', left: '0%', width: '50%', rotate: '0', zIndex: 20 };
+
                     return (
-                        <div key={acc.id} className="absolute w-full h-full flex items-center justify-center drop-shadow-lg" style={{ zIndex: pos.zIndex }}>
-                            <div className="absolute text-[0.8em]" style={{
-                                top: acc.metadata?.pos?.top || pos.top,
-                                left: acc.metadata?.pos?.left || pos.left,
-                                transform: `rotate(${acc.metadata?.pos?.rotate || 0}deg)`
-                            }}>
-                                {acc.icon}
-                            </div>
+                        <div
+                            key={acc.id}
+                            className="absolute flex items-center justify-center drop-shadow-lg"
+                            style={{
+                                top: anchor.top,
+                                left: anchor.left,
+                                width: anchor.width,
+                                transform: `rotate(${anchor.rotate || 0}deg)`,
+                                zIndex: anchor.zIndex
+                            }}
+                        >
+                            {/* La imagen o icono del objeto asume el 100% del ancho del contenedor anclado */}
+                            {acc.icon.startsWith('http') ? (
+                                <img src={acc.icon} alt={acc.category} className="w-full h-auto object-contain" />
+                            ) : (
+                                <span style={{ fontSize: '1em', width: '100%', display: 'flex', justifyContent: 'center' }}>
+                                    {acc.icon}
+                                </span>
+                            )}
                         </div>
                     );
                 })}
