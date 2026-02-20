@@ -222,6 +222,28 @@ const PetDetailsModal: React.FC<PetDetailsModalProps> = ({ member, isOpen, onClo
                                 <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 text-center">
                                     {member.pet_name || 'Mascota Sin Nombre'}
                                 </h2>
+
+                                {/* Buffs & State Zone */}
+                                <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700 flex flex-wrap justify-center gap-2">
+                                    {/* Active Buffs */}
+                                    {(member.shield_hp || 0) > 0 && <span className="text-sm" title={`Escudo (HP: ${member.shield_hp})`}>🛡️</span>}
+                                    {member.double_points_until && new Date(member.double_points_until) > new Date() && <span className="text-sm" title="¡Puntos x2 Activo!">⚡</span>}
+                                    {member.hidden_until && new Date(member.hidden_until) > new Date() && <span className="text-sm" title="Ranking oculto">🌫️</span>}
+                                    {member.active_vfx && member.active_vfx.length > 0 && member.active_vfx.map(vfx => (
+                                        <span key={vfx} className="text-sm" title="Efecto visual activo">✨</span>
+                                    ))}
+
+                                    {/* Divided Ready-to-Use items */}
+                                    {inventory.filter(i => !['hat', 'lenses', 'crown', 'cape', 'skin', 'background', 'nickname'].includes(i.category)).length > 0 && (
+                                        <div className="flex items-center pl-2 ml-2 border-l border-slate-200 dark:border-slate-600 gap-1 opacity-60 grayscale-[0.3]">
+                                            {inventory.filter(i => !['hat', 'lenses', 'crown', 'cape', 'skin', 'background', 'nickname'].includes(i.category)).map(item => (
+                                                <span key={item.id} className="text-xs" title={`Listo para usar: ${item.name}`}>
+                                                    {item.icon}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 

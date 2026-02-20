@@ -6,6 +6,7 @@ interface Accessory {
     icon: string;
     category: string;
     metadata?: any;
+    is_equipped?: boolean;
 }
 
 interface Member {
@@ -30,7 +31,7 @@ interface PetAvatarProps {
 }
 
 const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isInteractive = true, fullBody = false }) => {
-    const equippedAccessories = member.inventory?.filter(item => item.category === 'accessory') || [];
+    const equippedAccessories = member.inventory?.filter(item => item.is_equipped && ['hat', 'lenses', 'crown', 'cape'].includes(item.category)) || [];
 
     const sizeClasses = {
         sm: 'w-10 h-10 text-xl',
@@ -49,6 +50,16 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
         }
     };
 
+    const getPositionStyle = (category: string) => {
+        switch (category) {
+            case 'hat': return { top: '-25%', left: '0%', zIndex: 30 };
+            case 'crown': return { top: '-30%', left: '0%', zIndex: 30 };
+            case 'lenses': return { top: '5%', left: '0%', zIndex: 30 };
+            case 'cape': return { top: '10%', left: '-15%', zIndex: 5 }; // Behind the pet slightly or below
+            default: return { top: '0', left: '0', zIndex: 20 };
+        }
+    };
+
     return (
         <motion.div
             whileHover={isInteractive ? { scale: 1.05, y: -5 } : {}}
@@ -62,17 +73,17 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
             }}
         >
             {/* Visual Effects (VFX) Layers */}
-            {member.active_vfx?.includes('aura') && (
+            {member.active_vfx?.includes('aura_stars') && (
                 <div className="absolute inset-0 z-0 animate-pulse bg-primary/20 rounded-full blur-xl scale-125" />
             )}
-            {member.active_vfx?.includes('stars') && (
+            {member.active_vfx?.includes('aura_stars') && (
                 <div className="absolute inset-0 z-30 pointer-events-none">
                     <div className="absolute top-0 left-1/4 animate-bounce delay-100">✨</div>
                     <div className="absolute bottom-1/4 right-0 animate-bounce delay-300">⭐</div>
                     <div className="absolute top-1/2 -left-2 animate-bounce delay-700 text-xs">✨</div>
                 </div>
             )}
-            {member.active_vfx?.includes('fire') && (
+            {member.active_vfx?.includes('fire_trail') && (
                 <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-0 scale-150 blur-[2px] opacity-60">
                     🔥
                 </div>
@@ -84,25 +95,30 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
 
             {/* Base Pet */}
             <div className="relative z-10 select-none">
-                {member.avatar_url?.startsWith('http') ? (
+                {member.selected_skin ? (
+                    <span className="text-[1.2em]">{member.selected_skin}</span>
+                ) : member.avatar_url?.startsWith('http') ? (
                     <img src={member.avatar_url} alt={member.name} className="w-full h-full object-cover" />
                 ) : (
-                    <span>{member.avatar_url || '🐾'}</span>
+                    <span className="text-[1.2em]">{member.avatar_url || '🐾'}</span>
                 )}
             </div>
 
-            {/* Accessory Overlays - Simplified using Emojis for now */}
-            <div className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center">
-                {/* This would be more complex with SVGs, but for MVP we wrap the pet with emojis */}
-                {equippedAccessories.map((acc) => (
-                    <div key={acc.id} className="absolute text-[0.6em]" style={{
-                        top: acc.metadata?.pos?.top || '0px',
-                        left: acc.metadata?.pos?.left || '0px',
-                        transform: `rotate(${acc.metadata?.pos?.rotate || 0}deg)`
-                    }}>
-                        {acc.icon}
-                    </div>
-                ))}
+            {/* Accessory Overlays */}
+            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                {equippedAccessories.map((acc) => {
+                    const defaultPos = getPositionStyle(acc.category);
+                    return (
+                        <div key={acc.id} className="absolute text-[0.8em] drop-shadow-lg" style={{
+                            top: acc.metadata?.pos?.top || defaultPos.top,
+                            left: acc.metadata?.pos?.left || defaultPos.left,
+                            transform: `rotate(${acc.metadata?.pos?.rotate || 0}deg)`,
+                            zIndex: defaultPos.zIndex
+                        }}>
+                            {acc.icon}
+                        </div>
+                    );
+                })}
             </div>
 
             {/* Shield HP Badge */}
