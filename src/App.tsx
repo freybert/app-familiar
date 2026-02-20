@@ -55,8 +55,7 @@ function App() {
   const [newTemplateTitle, setNewTemplateTitle] = useState('');
   const [newTemplatePoints, setNewTemplatePoints] = useState('10');
   const [loading, setLoading] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
+  
   useEffect(() => {
     const init = async () => {
       try {
