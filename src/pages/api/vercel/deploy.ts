@@ -39,7 +39,7 @@ export default async function handler(req: any, res: any) {
         }),
     });
 
-    const result = await response.json();
+    const result: any = await response.json();
     if (!response.ok) {
         return res.status(500).json({ error: result.error?.message || 'Deployment failed' });
     }

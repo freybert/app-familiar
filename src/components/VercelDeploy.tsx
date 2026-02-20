@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase"; // adjust path if needed
 
 /**
@@ -10,8 +10,17 @@ export default function VercelDeploy() {
     const [repo, setRepo] = useState("https://github.com/your-org/freybert");
     const [status, setStatus] = useState<string>("");
 
-    const isAdmin = supabase.auth.getUser()?.data?.metadata?.dni === "75777950";
+    const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
+    useEffect(() => {
+        const checkAdmin = async () => {
+            const { data } = await supabase.auth.getUser();
+            setIsAdmin(data?.user?.user_metadata?.dni === "75777950");
+        };
+        checkAdmin();
+    }, []);
+
+    if (isAdmin === null) return <div className="p-4">Checking permissions...</div>;
     if (!isAdmin) return null;
 
     const saveToken = async () => {
