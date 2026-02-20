@@ -248,7 +248,18 @@ const FamilyManagement: React.FC<FamilyManagementProps> = ({ currentUser }) => {
                         size="sm"
                     />
                     <div className="flex flex-col">
-                        <span className="text-xs font-bold truncate max-w-[120px]">{currentUser?.name || 'Usuario'}</span>
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold truncate max-w-[120px]">{currentUser?.name || 'Usuario'}</span>
+                            {isAdmin && (
+                                <button
+                                    onClick={() => setShowGoalModal(true)}
+                                    className="p-1 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-all"
+                                    title="Nueva Meta"
+                                >
+                                    <span className="material-symbols-outlined text-sm">add_circle</span>
+                                </button>
+                            )}
+                        </div>
                         <span className={`text-[8px] font-black uppercase px-1 rounded border w-fit ${isAdmin ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
                             {isAdmin ? 'Admin' : 'Miembro'}
                         </span>
@@ -264,15 +275,6 @@ const FamilyManagement: React.FC<FamilyManagementProps> = ({ currentUser }) => {
                 <section>
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Meta Activa</h2>
-                        {isAdmin && (
-                            <button
-                                onClick={() => setShowGoalModal(true)}
-                                className="bg-primary/10 hover:bg-primary/20 text-primary font-bold px-3 py-1.5 rounded-full text-xs flex items-center gap-1 transition-colors"
-                            >
-                                <span className="material-symbols-outlined text-sm">add</span>
-                                Nueva Meta
-                            </button>
-                        )}
                     </div>
 
                     {activeGoal ? (

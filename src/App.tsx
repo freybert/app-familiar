@@ -124,21 +124,45 @@ function App() {
   };
 
   const renderView = () => {
-    if (loading) return <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark text-primary font-black animate-pulse">Cargando...</div>;
+    if (loading) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background-light dark:bg-background-dark text-primary p-8 text-center">
+          <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-6"></div>
+          <h1 className="text-2xl font-black mb-2 animate-pulse">Cargando Familia...</h1>
+          <p className="text-sm text-slate-500 font-bold opacity-60">Conectando con la base de datos segura</p>
+          {/* Fallback button if stuck */}
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-8 text-xs font-black uppercase tracking-widest text-primary/50 hover:text-primary transition-colors"
+          >
+            ¿Tarda mucho? Reintentar
+          </button>
+        </div>
+      );
+    }
 
     if (!currentUser) {
       if (currentView === 'register') return <RegisterView onRegisterSuccess={handleLoginSuccess} onSwitchToLogin={() => setCurrentView('login')} />;
       return <LoginView onLoginSuccess={handleLoginSuccess} onSwitchToRegister={() => setCurrentView('register')} />;
     }
 
-    // Onboarding Bypass for Admin
-    if (currentUser.dni === '75777950' && !currentUser.onboarding_completed) {
-      // Automatically complete onboarding for admin if not done
-      const updatedUser = { ...currentUser, onboarding_completed: true, avatar_url: 'admin_shield' };
+    // Onboarding Bypass and Name Confirmation for Admin
+    if (currentUser?.dni === '75777950' && (!currentUser.onboarding_completed || currentUser.name !== 'Ferybert')) {
+      // Automatically set name to Ferybert and complete onboarding for admin if not done
+      const updatedUser = {
+        ...currentUser,
+        name: 'Ferybert',
+        onboarding_completed: true,
+        avatar_url: 'admin_shield'
+      };
       setCurrentUser(updatedUser);
       localStorage.setItem('family_app_user', JSON.stringify(updatedUser));
       // Update DB too
-      supabase.from('users').update({ onboarding_completed: true, avatar_url: 'admin_shield' }).eq('id', currentUser.id).then();
+      supabase.from('users').update({
+        name: 'Ferybert',
+        onboarding_completed: true,
+        avatar_url: 'admin_shield'
+      }).eq('id', currentUser.id).then();
     }
 
     if (!currentUser.onboarding_completed || currentView === 'onboarding') {
