@@ -32,6 +32,7 @@ interface PetAvatarProps {
 
 const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isInteractive = true, fullBody = false }) => {
     const equippedAccessories = member.inventory?.filter(item => item.is_equipped && ['hat', 'lenses', 'crown', 'cape'].includes(item.category)) || [];
+    const equippedBackground = member.inventory?.find(item => item.is_equipped && item.category === 'background');
 
     const sizeClasses = {
         sm: 'w-10 h-10 text-xl',
@@ -60,6 +61,11 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
         }
     };
 
+    // Determine the background to show. If an item is equipped, use its icon (which should be an image URL for backgrounds). 
+    // Otherwise fallback to selected_background string.
+    const bgImage = equippedBackground ? equippedBackground.metadata?.value || equippedBackground.icon : member.selected_background;
+    const hasBgImage = !!bgImage && String(bgImage).startsWith('http');
+
     return (
         <motion.div
             whileHover={isInteractive ? { scale: 1.05, y: -5 } : {}}
@@ -68,8 +74,8 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
             onClick={onClick}
             className={`relative flex items-center justify-center cursor-pointer overflow-hidden transition-all border-2 border-white dark:border-slate-800 shadow-sm ${fullBody ? 'rounded-[2rem] aspect-[3/4] h-auto' : 'rounded-full h-auto aspect-square'} ${sizeClasses[size]}`}
             style={{
-                background: member.selected_background || 'transparent',
-                backgroundColor: member.selected_background ? undefined : 'rgba(var(--color-primary), 0.1)'
+                background: hasBgImage ? 'transparent' : (bgImage || 'transparent'),
+                backgroundColor: (hasBgImage || bgImage) ? undefined : 'rgba(var(--color-primary), 0.1)'
             }}
         >
             {/* Visual Effects (VFX) Layers */}
@@ -88,17 +94,22 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
                     🔥
                 </div>
             )}
-            {/* Background Layer */}
-            {member.selected_background && (
-                <div className="absolute inset-0 opacity-50 z-0 bg-cover bg-center" style={{ backgroundImage: `url(${member.selected_background})` }} />
+            {/* Background Layer (Equipped Background String/URL) */}
+            {(hasBgImage) && (
+                <div className="absolute inset-0 z-0 bg-cover bg-center" style={{ backgroundImage: `url(${bgImage})` }} />
+            )}
+            {(!hasBgImage && bgImage && !String(bgImage).startsWith('http')) && (
+                <div className="absolute inset-0 z-0 flex items-center justify-center opacity-50 text-6xl">
+                    {bgImage}
+                </div>
             )}
 
             {/* Base Pet */}
-            <div className="relative z-10 select-none">
+            <div className="relative z-10 select-none bg-transparent">
                 {member.selected_skin ? (
                     <span className="text-[1.2em]">{member.selected_skin}</span>
                 ) : member.avatar_url?.startsWith('http') ? (
-                    <img src={member.avatar_url} alt={member.name} className="w-full h-full object-cover" />
+                    <img src={member.avatar_url} alt={member.name} className="w-full h-full object-cover bg-transparent" />
                 ) : (
                     <span className="text-[1.2em]">{member.avatar_url || '🐾'}</span>
                 )}
