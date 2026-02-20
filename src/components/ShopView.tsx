@@ -118,7 +118,7 @@ const ShopView: React.FC<ShopViewProps> = ({ currentUser }) => {
             setBuyingId(item.id);
             try {
                 const { error: rpcError } = await supabase.rpc('buy_shop_item', {
-                    p_user_id: currentUser.id,
+                    p_user_id: member.id,
                     p_item_id: item.id,
                     p_cost: item.cost
                 });
