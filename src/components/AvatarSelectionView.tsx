@@ -48,6 +48,7 @@ const AvatarSelectionView: React.FC<AvatarSelectionViewProps> = ({ uid, onComple
                     await supabase
                         .from('family_members')
                         .insert([{
+                            id: uid,
                             name: userData.name,
                             role: 'Miembro',
                             avatar_url: selectedAvatar,

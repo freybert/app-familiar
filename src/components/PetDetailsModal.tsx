@@ -250,21 +250,27 @@ const PetDetailsModal: React.FC<PetDetailsModalProps> = ({ member, isOpen, onClo
                             {isOwnPet && (
                                 <div className="space-y-2">
                                     <label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">Cambiar Apodo</label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            value={petName}
-                                            onChange={e => setPetName(e.target.value)}
-                                            placeholder="Ej. El Guardian"
-                                            className="flex-1 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-4 font-bold outline-none focus:border-primary transition-colors"
-                                        />
-                                        <button
-                                            onClick={handleSavePetName}
-                                            disabled={saving}
-                                            className="bg-primary text-slate-900 font-black px-6 rounded-2xl shadow-lg shadow-primary/20 active:scale-95 transition-all"
-                                        >
-                                            {saving ? '...' : 'OK'}
-                                        </button>
-                                    </div>
+                                    {inventory.some(i => i.category === 'nickname') ? (
+                                        <div className="flex gap-2">
+                                            <input
+                                                value={petName}
+                                                onChange={e => setPetName(e.target.value)}
+                                                placeholder="Ej. El Guardian"
+                                                className="flex-1 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-4 font-bold outline-none focus:border-primary transition-colors"
+                                            />
+                                            <button
+                                                onClick={handleSavePetName}
+                                                disabled={saving}
+                                                className="bg-primary text-slate-900 font-black px-6 rounded-2xl shadow-lg shadow-primary/20 active:scale-95 transition-all"
+                                            >
+                                                {saving ? '...' : 'OK'}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-center">
+                                            <p className="text-xs font-bold text-slate-400">💍 Compra un "Apodo" en el Bazar para cambiar el nombre de tu mascota.</p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

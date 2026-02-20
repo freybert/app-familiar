@@ -251,7 +251,7 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
 
     const addTask = async () => {
         if (!newTaskTitle.trim()) return;
-        if (isAdmin && !newTaskAssignee) {
+        if (!newTaskAssignee) {
             alert('Por favor, selecciona un miembro de la familia para asignar la tarea.');
             return;
         }
@@ -352,16 +352,14 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
                 <div className="flex items-center gap-3">
                     <div className="flex flex-col items-end">
                         <div className="flex items-center gap-1.5">
-                            {isAdmin && (
-                                <button
-                                    onClick={() => setShowModal(true)}
-                                    className="p-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-all mr-2 flex items-center gap-1"
-                                    title="Nueva Tarea"
-                                >
-                                    <span className="material-symbols-outlined text-lg">add_circle</span>
-                                    <span className="text-[10px] font-black uppercase">Tarea</span>
-                                </button>
-                            )}
+                            <button
+                                onClick={() => setShowModal(true)}
+                                className="p-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-all mr-2 flex items-center gap-1"
+                                title="Nueva Tarea"
+                            >
+                                <span className="material-symbols-outlined text-lg">add_circle</span>
+                                <span className="text-[10px] font-black uppercase">Tarea</span>
+                            </button>
                             {(members.find(m => m.id === currentUser?.id)?.streak_count ?? 0) >= 3 && (
                                 <div className="flex items-center bg-orange-100 dark:bg-orange-900/30 px-1.5 py-0.5 rounded-full border border-orange-200 dark:border-orange-800 animate-pulse">
                                     <span className="text-[12px]">🔥</span>

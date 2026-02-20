@@ -53,7 +53,7 @@ const ShopView: React.FC<ShopViewProps> = ({ currentUser }) => {
         const channel = supabase
             .channel('shop_changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'shop_items' }, () => fetchData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'family_members', filter: `id=eq.${currentUser.id}` }, () => fetchData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'family_members' }, () => fetchData())
             .subscribe();
 
         return () => {
@@ -73,11 +73,21 @@ const ShopView: React.FC<ShopViewProps> = ({ currentUser }) => {
             .select('item_id')
             .eq('user_id', currentUser.id);
 
-        const { data: memberData } = await supabase
+        let { data: memberData } = await supabase
             .from('family_members')
             .select('id, name, total_points, shield_hp')
             .eq('id', currentUser.id)
             .single();
+
+        // Fallback for older users created before ID was properly matched
+        if (!memberData) {
+            const { data: fallbackData } = await supabase
+                .from('family_members')
+                .select('id, name, total_points, shield_hp')
+                .eq('name', currentUser.name)
+                .single();
+            memberData = fallbackData;
+        }
 
         if (itemsData) setItems(itemsData);
         if (inventoryData) {
