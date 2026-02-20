@@ -14,7 +14,8 @@ const AVATAR_OPTIONS = [
     { name: 'Conejo', url: "https://img.icons8.com/fluency/96/rabbit.png" },
     { name: 'Panda', url: "https://img.icons8.com/fluency/96/panda.png" },
     { name: 'Zorro', url: "https://img.icons8.com/fluency/96/fox.png" },
-    { name: 'Koala', url: "https://img.icons8.com/fluency/96/koala.png" }
+    { name: 'Koala', url: "https://img.icons8.com/fluency/96/koala.png" },
+    { name: 'Serpiente', url: "https://img.icons8.com/fluency/96/snake.png" }
 ];
 
 const AvatarSelectionView: React.FC<AvatarSelectionViewProps> = ({ uid, onComplete }) => {

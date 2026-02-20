@@ -262,7 +262,7 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
                 description: newTaskDesc,
                 due_date: newTaskDate ? new Date(newTaskDate).toISOString() : null,
                 end_date: newTaskEndDate ? new Date(newTaskEndDate).toISOString() : (newTaskDate ? new Date(newTaskDate).toISOString() : null),
-                duration: newTaskDuration,
+                duration: newTaskDuration || null,
                 assignee_id: newTaskAssignee || null,
                 is_completed: false,
                 is_daily: newTaskDaily,
