@@ -72,61 +72,67 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
             whileTap="tap"
             variants={containerVariants}
             onClick={onClick}
-            className={`relative flex items-center justify-center cursor-pointer overflow-hidden transition-all border-2 border-white dark:border-slate-800 shadow-sm ${fullBody ? 'rounded-[2rem] aspect-[3/4] h-auto' : 'rounded-full h-auto aspect-square'} ${sizeClasses[size]}`}
+            // CAPA 1 (Contenedor y Fondo Base) - position: relative y tamaño fijo
+            className={`relative flex items-center justify-center cursor-pointer overflow-hidden transition-all border-2 border-white dark:border-slate-800 shadow-sm bg-cover bg-center ${fullBody ? 'rounded-[2rem] aspect-[3/4] h-auto' : 'rounded-full h-auto aspect-square'} ${sizeClasses[size]}`}
             style={{
-                background: hasBgImage ? 'transparent' : (bgImage || 'transparent'),
-                backgroundColor: (hasBgImage || bgImage) ? undefined : 'rgba(var(--color-primary), 0.1)'
+                backgroundImage: hasBgImage ? `url(${bgImage})` : 'none',
+                backgroundColor: hasBgImage ? 'transparent' : (bgImage || 'rgba(var(--color-primary), 0.1)')
             }}
         >
-            {/* Visual Effects (VFX) Layers */}
+            {/* Si el fondo es un emoji y no imagen URL */}
+            {!hasBgImage && bgImage && !String(bgImage).startsWith('http') && (
+                <div className="absolute inset-0 z-0 flex items-center justify-center opacity-50 text-6xl pointer-events-none">
+                    {bgImage}
+                </div>
+            )}
+
+            {/* Visual Effects (VFX) - Entre el fondo y la mascota */}
             {member.active_vfx?.includes('aura_stars') && (
-                <div className="absolute inset-0 z-0 animate-pulse bg-primary/20 rounded-full blur-xl scale-125" />
+                <div className="absolute inset-0 z-[5] animate-pulse bg-primary/20 rounded-full blur-xl scale-125 pointer-events-none" />
             )}
             {member.active_vfx?.includes('aura_stars') && (
-                <div className="absolute inset-0 z-30 pointer-events-none">
+                <div className="absolute inset-0 z-[15] pointer-events-none">
                     <div className="absolute top-0 left-1/4 animate-bounce delay-100">✨</div>
                     <div className="absolute bottom-1/4 right-0 animate-bounce delay-300">⭐</div>
                     <div className="absolute top-1/2 -left-2 animate-bounce delay-700 text-xs">✨</div>
                 </div>
             )}
             {member.active_vfx?.includes('fire_trail') && (
-                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-0 scale-150 blur-[2px] opacity-60">
+                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-[5] scale-150 blur-[2px] opacity-60 pointer-events-none">
                     🔥
                 </div>
             )}
-            {/* Background Layer (Equipped Background String/URL) */}
-            {(hasBgImage) && (
-                <div className="absolute inset-0 z-0 bg-cover bg-center" style={{ backgroundImage: `url(${bgImage})` }} />
-            )}
-            {(!hasBgImage && bgImage && !String(bgImage).startsWith('http')) && (
-                <div className="absolute inset-0 z-0 flex items-center justify-center opacity-50 text-6xl">
-                    {bgImage}
-                </div>
-            )}
 
-            {/* Base Pet */}
-            <div className="relative z-10 select-none bg-transparent">
+            {/* CAPA 2 (Mascota) - position: absolute, w-full, h-full, object-contain, z-index: 10 */}
+            <div className="absolute inset-0 z-10 select-none bg-transparent pointer-events-none">
                 {member.selected_skin ? (
-                    <span className="text-[1.2em]">{member.selected_skin}</span>
+                    <div className="w-full h-full flex items-center justify-center text-[1.2em]">{member.selected_skin}</div>
                 ) : member.avatar_url?.startsWith('http') ? (
-                    <img src={member.avatar_url} alt={member.name} className="w-full h-full object-cover bg-transparent" />
+                    <img
+                        src={member.avatar_url}
+                        alt={member.name}
+                        className="w-full h-full object-contain bg-transparent"
+                        style={member.active_vfx?.length ? { filter: 'drop-shadow(0px 0px 8px rgba(255,215,0,0.8))' } : {}}
+                    />
                 ) : (
-                    <span className="text-[1.2em]">{member.avatar_url || '🐾'}</span>
+                    <div className="w-full h-full flex items-center justify-center text-[1.2em]">{member.avatar_url || '🐾'}</div>
                 )}
             </div>
 
-            {/* Accessory Overlays */}
-            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            {/* CAPA 3 (Objetos/Ropa) - position: absolute, z-index: 20 */}
+            <div className="absolute inset-0 z-20 pointer-events-none">
                 {equippedAccessories.map((acc) => {
-                    const defaultPos = getPositionStyle(acc.category);
+                    // Mantenemos la lógica de posicionado absoluto según la categoría
+                    const pos = getPositionStyle(acc.category);
                     return (
-                        <div key={acc.id} className="absolute text-[0.8em] drop-shadow-lg" style={{
-                            top: acc.metadata?.pos?.top || defaultPos.top,
-                            left: acc.metadata?.pos?.left || defaultPos.left,
-                            transform: `rotate(${acc.metadata?.pos?.rotate || 0}deg)`,
-                            zIndex: defaultPos.zIndex
-                        }}>
-                            {acc.icon}
+                        <div key={acc.id} className="absolute w-full h-full flex items-center justify-center drop-shadow-lg" style={{ zIndex: pos.zIndex }}>
+                            <div className="absolute text-[0.8em]" style={{
+                                top: acc.metadata?.pos?.top || pos.top,
+                                left: acc.metadata?.pos?.left || pos.left,
+                                transform: `rotate(${acc.metadata?.pos?.rotate || 0}deg)`
+                            }}>
+                                {acc.icon}
+                            </div>
                         </div>
                     );
                 })}
