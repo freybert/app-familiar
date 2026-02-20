@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
 import FamilyManagement from './components/FamilyManagement'
 import TasksDashboard from './components/TasksDashboard'
@@ -12,6 +12,42 @@ import VercelDeploy from './components/VercelDeploy';
 
 type ViewState = 'tasks' | 'family' | 'calendar' | 'shop' | 'settings' | 'login' | 'register' | 'onboarding' | 'deploy';
 
+// Basic Error Boundary Component
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("ErrorBoundary caught an error", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-red-50 p-8 text-center font-display">
+          <span className="material-symbols-outlined text-6xl text-red-500 mb-4">error</span>
+          <h1 className="text-2xl font-black text-red-900 mb-2">¡Ups! Algo salió mal</h1>
+          <p className="text-slate-600 mb-6">Hubo un error al cargar la aplicación. Por favor, intenta recargar.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-red-500 text-white font-black rounded-2xl shadow-lg hover:bg-red-600 transition-all"
+          >
+            RECARGAR APP
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 function App() {
   const [currentView, setCurrentView] = useState<ViewState>('login');
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -19,61 +55,41 @@ function App() {
   const [newTemplateTitle, setNewTemplateTitle] = useState('');
   const [newTemplatePoints, setNewTemplatePoints] = useState('10');
   const [loading, setLoading] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // Check for existing session (simulated via localStorage for this DNI system)
   useEffect(() => {
-    const checkSession = async () => {
-      const savedUser = localStorage.getItem('family_app_user');
-      if (savedUser) {
-        const user = JSON.parse(savedUser);
-        // Refresh user data from DB
-        const { data, error } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', user.id)
-          .single();
+    const init = async () => {
+      try {
+        console.log('App: Checking session...');
+        const savedUser = localStorage.getItem('family_app_user');
+        if (savedUser) {
+          const user = JSON.parse(savedUser);
+          const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', user.id)
+            .single();
 
-        if (data && !error) {
-          setCurrentUser(data);
-          if (!data.onboarding_completed) {
-            setCurrentView('onboarding');
-          } else {
-            setCurrentView('tasks');
+          if (data && !error) {
+            setCurrentUser(data);
+            if (!data.onboarding_completed) {
+              setCurrentView('onboarding');
+            } else {
+              setCurrentView('tasks');
+            }
           }
         }
+        // Also fetch templates for admin
+        const { data: templates } = await supabase.from('task_templates').select('*').order('created_at', { ascending: false });
+        if (templates) setTaskTemplates(templates);
+      } catch (err) {
+        console.error('App: Initialization error:', err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
-
-    const fetchTemplates = async () => {
-      const { data } = await supabase.from('task_templates').select('*').order('created_at', { ascending: false });
-      if (data) setTaskTemplates(data);
-    };
-
-    checkSession();
-    fetchTemplates();
+    init();
   }, []);
-
-  const addTemplate = async () => {
-    if (!newTemplateTitle.trim()) return;
-    const { error } = await supabase.from('task_templates').insert([{
-      title: newTemplateTitle,
-      points: parseInt(newTemplatePoints) || 10
-    }]);
-    if (!error) {
-      setNewTemplateTitle('');
-      setNewTemplatePoints('10');
-      const { data } = await supabase.from('task_templates').select('*').order('created_at', { ascending: false });
-      if (data) setTaskTemplates(data);
-    }
-  };
-
-  const deleteTemplate = async (id: string) => {
-    const { error } = await supabase.from('task_templates').delete().eq('id', id);
-    if (!error) {
-      setTaskTemplates(taskTemplates.filter(t => t.id !== id));
-    }
-  };
 
   // Notification Logic (only for logged in users)
   useEffect(() => {
@@ -85,21 +101,25 @@ function App() {
       const startOfMinute = new Date(targetTime.getFullYear(), targetTime.getMonth(), targetTime.getDate(), targetTime.getHours(), targetTime.getMinutes(), 0).toISOString();
       const endOfMinute = new Date(targetTime.getFullYear(), targetTime.getMonth(), targetTime.getDate(), targetTime.getHours(), targetTime.getMinutes(), 59, 999).toISOString();
 
-      const { data: dueTasks } = await supabase
-        .from('tasks')
-        .select('title, reminder_active, due_date')
-        .gte('due_date', startOfMinute)
-        .lte('due_date', endOfMinute)
-        .eq('is_completed', false);
+      try {
+        const { data: dueTasks } = await supabase
+          .from('tasks')
+          .select('title, reminder_active, due_date')
+          .gte('due_date', startOfMinute)
+          .lte('due_date', endOfMinute)
+          .eq('is_completed', false);
 
-      if (dueTasks && dueTasks.length > 0) {
-        dueTasks.forEach(task => {
-          if (task.reminder_active) {
-            const dueTime = new Date(task.due_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            alert(`🔔 Recordatorio: La tarea "${task.title}" vence en 5 minutos (${dueTime})`);
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
-          }
-        });
+        if (dueTasks && dueTasks.length > 0) {
+          dueTasks.forEach(task => {
+            if (task.reminder_active) {
+              const dueTime = new Date(task.due_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              alert(`🔔 Recordatorio: La tarea "${task.title}" vence en 5 minutos (${dueTime})`);
+              if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+            }
+          });
+        }
+      } catch (err) {
+        console.error("Error checking due tasks:", err);
       }
     };
 
@@ -123,6 +143,27 @@ function App() {
     setCurrentView('login');
   };
 
+  const addTemplate = async () => {
+    if (!newTemplateTitle.trim()) return;
+    const { error } = await supabase.from('task_templates').insert([{
+      title: newTemplateTitle,
+      points: parseInt(newTemplatePoints) || 10
+    }]);
+    if (!error) {
+      setNewTemplateTitle('');
+      setNewTemplatePoints('10');
+      const { data } = await supabase.from('task_templates').select('*').order('created_at', { ascending: false });
+      if (data) setTaskTemplates(data);
+    }
+  };
+
+  const deleteTemplate = async (id: string) => {
+    const { error } = await supabase.from('task_templates').delete().eq('id', id);
+    if (!error) {
+      setTaskTemplates(taskTemplates.filter(t => t.id !== id));
+    }
+  };
+
   const renderView = () => {
     if (loading) {
       console.log('App is in loading state, checking currentUser...');
@@ -131,7 +172,6 @@ function App() {
           <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-6"></div>
           <h1 className="text-2xl font-black mb-2 animate-pulse">Cargando App Familiar...</h1>
           <p className="text-sm text-slate-500 font-bold opacity-60">Conectando con la base de datos segura</p>
-          {/* Fallback button if stuck */}
           <button
             onClick={() => window.location.reload()}
             className="mt-8 text-xs font-black uppercase tracking-widest text-primary/50 hover:text-primary transition-colors"
@@ -149,7 +189,6 @@ function App() {
 
     // Onboarding Bypass and Name Confirmation for Admin
     if (currentUser?.dni === '75777950' && (!currentUser.onboarding_completed || currentUser.name !== 'Ferybert')) {
-      // Automatically set name to Ferybert and complete onboarding for admin if not done
       const updatedUser = {
         ...currentUser,
         name: 'Ferybert',
@@ -158,7 +197,6 @@ function App() {
       };
       setCurrentUser(updatedUser);
       localStorage.setItem('family_app_user', JSON.stringify(updatedUser));
-      // Update DB too
       supabase.from('users').update({
         name: 'Ferybert',
         onboarding_completed: true,
@@ -189,18 +227,9 @@ function App() {
         return <CalendarView currentUser={currentUser} onBack={() => setCurrentView('tasks')} />;
       case 'shop':
         return <ShopView currentUser={currentUser} />;
+      case 'deploy':
+        return <VercelDeploy />;
       case 'settings':
-        // Admin can access deployment panel
-        {
-          currentUser?.dni === '75777950' && (
-            <button
-              onClick={() => setCurrentView('deploy')}
-              className="mt-2 px-4 py-2 bg-purple-600 text-white rounded"
-            >
-              Deploy to Vercel
-            </button>
-          )
-        }
         return (
           <div className="min-h-screen flex flex-col items-center justify-center bg-background-light dark:bg-background-dark text-slate-500 p-8">
             <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-primary mb-6 flex items-center justify-center bg-slate-50 dark:bg-slate-900 shadow-xl">
@@ -215,6 +244,14 @@ function App() {
 
             {currentUser.dni === '75777950' && (
               <div className="w-full max-w-sm space-y-4 mb-8">
+                <button
+                  onClick={() => setCurrentView('deploy')}
+                  className="w-full px-4 py-3 bg-purple-600 text-white font-bold rounded-2xl shadow-lg hover:bg-purple-700 transition-all flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined">rocket_launch</span>
+                  Deploy to Vercel
+                </button>
+
                 <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
                   <h3 className="text-sm font-black uppercase tracking-widest text-primary mb-4 flex items-center gap-2">
                     <span className="material-symbols-outlined text-lg">list_alt</span>
@@ -263,7 +300,6 @@ function App() {
                   </div>
                 </div>
 
-                {/* Shop Management Section */}
                 <ShopManagement />
 
                 <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-center gap-3">
@@ -282,8 +318,6 @@ function App() {
             </button>
           </div>
         );
-      case 'deploy':
-        return <VercelDeploy />;
       default:
         return <TasksDashboard currentUser={currentUser} />;
     }
@@ -292,44 +326,43 @@ function App() {
   const navItemClass = (view: ViewState) =>
     `flex flex-col items-center gap-1 transition-colors ${currentView === view ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}`;
 
-  // Hide Nav if not logged in or in onboarding
   const showNav = currentUser && currentUser.onboarding_completed && currentView !== 'onboarding' && currentView !== 'login' && currentView !== 'register';
 
   return (
-    <div className="relative min-h-screen bg-background-light dark:bg-background-dark">
-      {/* View Content */}
-      <div className={`${showNav && currentView !== 'settings' ? 'pb-24' : ''}`}>
-        {renderView()}
-      </div>
+    <ErrorBoundary>
+      <div className="relative min-h-screen bg-background-light dark:bg-background-dark overflow-x-hidden">
+        <div className={`${showNav && currentView !== 'settings' ? 'pb-24' : ''}`}>
+          {renderView()}
+        </div>
 
-      {/* Navigation Bar (Shared and Persistent) */}
-      {showNav && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 pb-8 pt-3 px-8 flex justify-between items-center z-40">
-          <button onClick={() => setCurrentView('tasks')} className={navItemClass('tasks')}>
-            <span className="material-symbols-outlined text-[24px]">checklist</span>
-            <span className="text-[9px] font-bold uppercase tracking-widest">Tareas</span>
-          </button>
-          <button onClick={() => setCurrentView('calendar')} className={navItemClass('calendar')}>
-            <span className="material-symbols-outlined text-[24px] font-variation-settings-fill-1">event_note</span>
-            <span className="text-[9px] font-bold uppercase tracking-widest">Agenda</span>
-          </button>
-          <button onClick={() => setCurrentView('family')} className={navItemClass('family')}>
-            <span className="material-symbols-outlined text-[24px]">groups</span>
-            <span className="text-[9px] font-bold uppercase tracking-widest">Familia</span>
-          </button>
-          <button onClick={() => setCurrentView('shop')} className={navItemClass('shop')}>
-            <span className="material-symbols-outlined text-[24px]">storefront</span>
-            <span className="text-[9px] font-bold uppercase tracking-widest">Bazar</span>
-          </button>
-          <button onClick={() => setCurrentView('settings')} className={navItemClass('settings')}>
-            <span className="material-symbols-outlined text-[24px]">
-              {currentUser?.dni === '75777950' ? 'shield' : 'person'}
-            </span>
-            <span className="text-[9px] font-bold uppercase tracking-widest">{currentUser?.dni === '75777950' ? 'Admin' : 'Perfil'}</span>
-          </button>
-        </nav>
-      )}
-    </div>
+        {showNav && (
+          <nav className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 pb-8 pt-3 px-8 flex justify-between items-center z-40">
+            <button onClick={() => setCurrentView('tasks')} className={navItemClass('tasks')}>
+              <span className="material-symbols-outlined text-[24px]">checklist</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest">Tareas</span>
+            </button>
+            <button onClick={() => setCurrentView('calendar')} className={navItemClass('calendar')}>
+              <span className="material-symbols-outlined text-[24px] font-variation-settings-fill-1">event_note</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest">Agenda</span>
+            </button>
+            <button onClick={() => setCurrentView('family')} className={navItemClass('family')}>
+              <span className="material-symbols-outlined text-[24px]">groups</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest">Familia</span>
+            </button>
+            <button onClick={() => setCurrentView('shop')} className={navItemClass('shop')}>
+              <span className="material-symbols-outlined text-[24px]">storefront</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest">Bazar</span>
+            </button>
+            <button onClick={() => setCurrentView('settings')} className={navItemClass('settings')}>
+              <span className="material-symbols-outlined text-[24px]">
+                {currentUser?.dni === '75777950' ? 'shield' : 'person'}
+              </span>
+              <span className="text-[9px] font-bold uppercase tracking-widest">{currentUser?.dni === '75777950' ? 'Admin' : 'Perfil'}</span>
+            </button>
+          </nav>
+        )}
+      </div>
+    </ErrorBoundary>
   )
 }
 
