@@ -10,7 +10,7 @@ export default function VercelDeploy() {
     const [repo, setRepo] = useState("https://github.com/your-org/freybert");
     const [status, setStatus] = useState<string>("");
 
-    const isAdmin = supabase.auth.user()?.metadata?.dni === "75777950";
+    const isAdmin = supabase.auth.getUser()?.data?.metadata?.dni === "75777950";
 
     if (!isAdmin) return null;
 

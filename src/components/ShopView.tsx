@@ -18,9 +18,7 @@ interface Member {
     shield_hp: number;
 }
 
-interface UserInventoryItem {
-    item_id: string;
-}
+
 
 interface ShopViewProps {
     currentUser: any;

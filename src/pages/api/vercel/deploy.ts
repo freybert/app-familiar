@@ -1,4 +1,4 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+// Removed Next.js types; using generic request/response
 import fetch from 'node-fetch';
 
 /**
@@ -6,7 +6,7 @@ import fetch from 'node-fetch';
  * Expects a JSON body: { repoUrl: string }
  * Uses the VERCEL_TOKEN environment variable (set via admin panel).
  */
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: any, res: any) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
