@@ -125,10 +125,11 @@ function App() {
 
   const renderView = () => {
     if (loading) {
+      console.log('App is in loading state, checking currentUser...');
       return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-background-light dark:bg-background-dark text-primary p-8 text-center">
           <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-6"></div>
-          <h1 className="text-2xl font-black mb-2 animate-pulse">Cargando Familia...</h1>
+          <h1 className="text-2xl font-black mb-2 animate-pulse">Cargando App Familiar...</h1>
           <p className="text-sm text-slate-500 font-bold opacity-60">Conectando con la base de datos segura</p>
           {/* Fallback button if stuck */}
           <button
