@@ -74,6 +74,45 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
     useEffect(() => {
         fetchData();
 
+        // Limpieza silenciosa de tareas viejas (solo Admin)
+        const limpiarTareasViejas = async () => {
+            if (!isAdmin) return;
+            try {
+                const limitDate = new Date();
+                limitDate.setDate(limitDate.getDate() - 7);
+                const limitStr = limitDate.toISOString();
+
+                const { data: oldTasks, error: fetchErr } = await supabase
+                    .from('tasks')
+                    .select('id, evidencia_url')
+                    .eq('is_completed', true)
+                    .not('fecha_completada', 'is', null)
+                    .lt('fecha_completada', limitStr);
+
+                if (fetchErr || !oldTasks || oldTasks.length === 0) return;
+
+                console.log(`🧹 Iniciando limpieza de ${oldTasks.length} tareas antiguas (más de 7 días)...`);
+
+                for (const task of oldTasks) {
+                    if (task.evidencia_url) {
+                        try {
+                            const urlObj = new URL(task.evidencia_url);
+                            const pathParts = urlObj.pathname.split('/public/evidencias/');
+                            if (pathParts.length > 1) {
+                                const filePath = pathParts[1];
+                                await supabase.storage.from('evidencias').remove([filePath]);
+                            }
+                        } catch (e) { console.error("Error parsing url para borrar evidencia", e); }
+                    }
+                    await supabase.from('tasks').delete().eq('id', task.id);
+                }
+                console.log('✨ Limpieza de tareas completada.');
+            } catch (err) {
+                console.error("Error general limpiando tareas:", err);
+            }
+        };
+        limpiarTareasViejas();
+
         // 8:00 PM Streak Alert Logic
         const streakInterval = setInterval(() => {
             const now = new Date();
@@ -92,42 +131,46 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
         }, 60000); // Check every minute
 
         return () => clearInterval(streakInterval);
-    }, [currentUser, tasks, members, streakAlertShown]);
+    }, [currentUser, tasks, members, streakAlertShown, isAdmin]);
 
     const fetchData = async () => {
         setLoading(true);
-        // Fetch Members
-        const { data: membersData } = await supabase
-            .from('family_members')
-            .select('id, name, avatar_url, total_points, streak_count, shield_hp, last_streak_update, pet_name, selected_background, selected_skin, hidden_until, double_points_until');
+        try {
+            // Fetch Members
+            const { data: membersData, error: memErr } = await supabase
+                .from('family_members')
+                .select('id, name, avatar_url, total_points, streak_count, shield_hp, last_streak_update, pet_name, selected_background, selected_skin, hidden_until, double_points_until');
 
-        if (membersData) setMembers(membersData as Member[]);
+            if (memErr) throw memErr;
+            if (membersData) setMembers(membersData as Member[]);
 
-        // Fetch Templates
-        const { data: templatesData } = await supabase
-            .from('task_templates')
-            .select('*')
-            .order('created_at', { ascending: false });
-        if (templatesData) setTemplates(templatesData);
+            // Fetch Templates
+            const { data: templatesData, error: tempErr } = await supabase
+                .from('task_templates')
+                .select('*')
+                .order('created_at', { ascending: false });
 
-        // Fetch Tasks with Assignee details
-        const { data: tasksData, error } = await supabase
-            .from('tasks')
-            .select(`
-                *,
-                family_members (
-                    id,
-                    name,
-                    avatar_url,
-                    pet_name,
-                    selected_background,
-                    selected_skin
-                )
-            `)
-            .order('created_at', { ascending: false });
+            if (tempErr) throw tempErr;
+            if (templatesData) setTemplates(templatesData);
 
-        if (error) console.error('Error fetching tasks:', error);
-        else {
+            // Fetch Tasks with Assignee details
+            const { data: tasksData, error: taskErr } = await supabase
+                .from('tasks')
+                .select(`
+                    *,
+                    family_members (
+                        id,
+                        name,
+                        avatar_url,
+                        pet_name,
+                        selected_background,
+                        selected_skin
+                    )
+                `)
+                .order('created_at', { ascending: false });
+
+            if (taskErr) throw taskErr;
+
             setTasks(tasksData || []);
             const now = new Date();
             const newAlerts: { name: string, points: number, title: string }[] = [];
@@ -204,8 +247,11 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
             }
             const { data: updatedMembers } = await supabase.from('family_members').select('id, name, avatar_url, total_points, streak_count, shield_hp, last_streak_update, pet_name, selected_background, selected_skin, hidden_until, double_points_until, active_vfx');
             if (updatedMembers) setMembers(updatedMembers as Member[]);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const handleUseJoker = async (task: Task) => {
@@ -436,7 +482,7 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
     };
 
     const renderTaskCard = (task: Task) => {
-        const isOpcional = task.tipo_mision === 'opcional';
+        const isOpcional = (task.tipo_mision || 'obligatoria') === 'opcional';
 
         return (
             <div key={task.id} className={`group bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border-2 ${isOpcional ? 'border-yellow-400/50 dark:border-yellow-600/50' : 'border-red-400/50 dark:border-red-500/50'} transition-all ${task.is_completed ? 'opacity-60 grayscale-[0.5]' : 'hover:shadow-md hover:scale-[1.01]'}`}>
@@ -643,10 +689,10 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
                                 Misiones Principales
                             </h2>
                             <div className="space-y-3">
-                                {tasks.filter(t => !t.tipo_mision || t.tipo_mision === 'obligatoria').length === 0 ? (
+                                {tasks.filter(t => (t.tipo_mision || 'obligatoria') === 'obligatoria').length === 0 ? (
                                     <p className="text-slate-400 text-sm italic">No hay misiones principales pendientes.</p>
                                 ) : (
-                                    tasks.filter(t => !t.tipo_mision || t.tipo_mision === 'obligatoria').map(renderTaskCard)
+                                    tasks.filter(t => (t.tipo_mision || 'obligatoria') === 'obligatoria').map(renderTaskCard)
                                 )}
                             </div>
                         </div>
@@ -657,10 +703,10 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
                                 Misiones Secundarias
                             </h2>
                             <div className="space-y-3">
-                                {tasks.filter(t => t.tipo_mision === 'opcional').length === 0 ? (
+                                {tasks.filter(t => (t.tipo_mision || 'obligatoria') === 'opcional').length === 0 ? (
                                     <p className="text-slate-400 text-sm italic">No hay misiones secundarias disponibles.</p>
                                 ) : (
-                                    tasks.filter(t => t.tipo_mision === 'opcional').map(renderTaskCard)
+                                    tasks.filter(t => (t.tipo_mision || 'obligatoria') === 'opcional').map(renderTaskCard)
                                 )}
                             </div>
                         </div>
