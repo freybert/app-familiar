@@ -133,7 +133,7 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
                 onClick={onClick}
                 // Fondo Completo en el Contenedor de la Mascota
                 // Eliminados border-white dark:border-slate-800 bg colores sólidos si hay imagen.
-                className={`relative flex items-center justify-center cursor-pointer transition-all border-2 shadow-sm overflow-hidden ${fondoUrl ? 'border-transparent' : 'border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800'} ${fullBody ? 'rounded-[2rem] aspect-[3/4] h-auto' : 'rounded-full h-auto aspect-square'} ${sizeClasses[size]}`}
+                className={`relative flex items-center justify-center cursor-pointer transition-all border-2 shadow-sm overflow-hidden mx-auto ${fondoUrl ? 'border-transparent' : 'border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800'} ${fullBody ? 'rounded-3xl' : 'rounded-full'} ${sizeClasses[size]}`}
                 style={{
                     backgroundImage: fondoUrl ? `url('${fondoUrl}')` : 'none',
                     backgroundSize: 'cover',
@@ -158,19 +158,19 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
                 )}
 
                 {/* Mascota Principal (Transparente, superpuesta sobre el fondo) */}
-                <div className="absolute inset-0 z-10 select-none bg-transparent pointer-events-none flex items-center justify-center">
+                <div className="absolute inset-0 z-10 select-none bg-transparent pointer-events-none flex items-center justify-center overflow-hidden">
                     {member.selected_skin ? (
-                        <div className="w-full h-full flex items-center justify-center text-[1.2em]">{member.selected_skin}</div>
+                        <div className="absolute inset-0 w-full h-full flex items-center justify-center text-[1.2em]">{member.selected_skin}</div>
                     ) : (member.avatar_url?.startsWith('http') && !imageError) ? (
                         <img
                             src={member.avatar_url}
                             alt={member.name}
                             onError={() => setImageError(true)}
-                            className="absolute inset-0 w-full h-full object-contain bg-transparent"
+                            className="absolute inset-0 w-full h-full object-contain"
                             style={member.active_vfx?.length ? { filter: 'drop-shadow(0px 0px 8px rgba(255,215,0,0.8))' } : {}}
                         />
                     ) : (
-                        <div className="w-full h-full rounded-full bg-slate-300 dark:bg-slate-600 flex items-center justify-center text-slate-500 overflow-hidden shadow-inner border-2 border-slate-200">
+                        <div className="absolute inset-0 w-full h-full bg-slate-300 dark:bg-slate-600 flex items-center justify-center text-slate-500">
                             <span className="material-symbols-outlined text-4xl opacity-50 font-variation-settings-fill-1 drop-shadow-sm">person</span>
                         </div>
                     )}
