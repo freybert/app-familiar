@@ -36,6 +36,7 @@ interface Task {
     reminder_active?: boolean;
     points: number;
     family_members?: Member; // Joined data
+    tipo_mision?: 'obligatoria' | 'opcional';
 }
 
 interface TasksDashboardProps {
@@ -64,6 +65,7 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
     const [newTaskDaily, setNewTaskDaily] = useState(false);
     const [newTaskPoints, setNewTaskPoints] = useState('10');
     const [streakAlertShown, setStreakAlertShown] = useState(false);
+    const [newTaskTipo, setNewTaskTipo] = useState<'obligatoria' | 'opcional'>('obligatoria');
 
     useEffect(() => {
         fetchData();
@@ -264,7 +266,8 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
                 is_daily: newTaskDaily,
                 last_reset_date: newTaskDaily ? new Date().toISOString().split('T')[0] : null,
                 reminder_active: newTaskReminder,
-                points: parseInt(newTaskPoints) || 10
+                points: parseInt(newTaskPoints) || 10,
+                tipo_mision: newTaskTipo
             }])
             .select(`
                 *,
@@ -327,6 +330,7 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
         setNewTaskReminder(false);
         setNewTaskDaily(false);
         setNewTaskPoints('10');
+        setNewTaskTipo('obligatoria');
     };
 
     const formatDate = (dateString?: string) => {
@@ -335,6 +339,89 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
         if (isToday(date)) return `Hoy, ${format(date, 'HH:mm', { locale: es })}`;
         if (isTomorrow(date)) return `Mañana, ${format(date, 'HH:mm', { locale: es })}`;
         return format(date, 'd MMM, HH:mm', { locale: es });
+    };
+
+    const renderTaskCard = (task: Task) => {
+        const isOpcional = task.tipo_mision === 'opcional';
+
+        return (
+            <div key={task.id} className={`group bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border-2 ${isOpcional ? 'border-yellow-400/50 dark:border-yellow-600/50' : 'border-red-400/50 dark:border-red-500/50'} transition-all ${task.is_completed ? 'opacity-60 grayscale-[0.5]' : 'hover:shadow-md hover:scale-[1.01]'}`}>
+                <div className="flex items-start gap-3">
+                    <button
+                        onClick={() => toggleTask(task)}
+                        className={`mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${task.is_completed ? 'bg-primary border-primary text-white' : 'border-slate-300 dark:border-slate-600 hover:border-primary'}`}
+                    >
+                        {task.is_completed && <span className="material-symbols-outlined text-sm font-bold">check</span>}
+                    </button>
+                    <div className="flex-1 min-w-0 pr-10 relative">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            {isOpcional ? (
+                                <span className="text-yellow-500 material-symbols-outlined text-sm font-variation-settings-fill-1">star</span>
+                            ) : (
+                                <span className="text-red-500 material-symbols-outlined text-sm font-variation-settings-fill-1">priority_high</span>
+                            )}
+                            <h3 className={`font-bold text-slate-900 dark:text-slate-100 line-clamp-1 ${task.is_completed ? 'line-through opacity-50' : ''}`}>
+                                {task.title}
+                            </h3>
+                            {task.is_daily && (
+                                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-[10px] font-black uppercase tracking-tighter shadow-sm border border-blue-100 dark:border-blue-800 animate-pulse">
+                                    <span className="material-symbols-outlined text-[12px]">sync</span>
+                                    Diaria
+                                </div>
+                            )}
+                            <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-lg text-[10px] font-bold border border-yellow-200 dark:border-yellow-700/50">
+                                <span>🪙</span>
+                                <span>{task.points}</span>
+                            </div>
+                        </div>
+                        {task.description && <p className="text-sm text-slate-500 mb-2 line-clamp-1 italic">{task.description}</p>}
+
+                        <div className="flex items-center gap-3">
+                            {task.family_members && (
+                                <div
+                                    onClick={() => setSelectedMemberForPet(task.family_members as Member)}
+                                    className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900/50 pr-2 rounded-full border border-slate-100 dark:border-slate-700 cursor-pointer hover:bg-slate-100 transition-colors"
+                                >
+                                    <PetAvatar member={task.family_members as Member} size="sm" isInteractive={false} />
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 truncate max-w-[80px]">{task.family_members.pet_name || task.family_members.name}</span>
+                                        {(task.family_members as any).hidden_until && new Date((task.family_members as any).hidden_until) > new Date() && (
+                                            <span className="text-[8px] font-black text-primary uppercase">🌫️ Oculto</span>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                            {task.due_date && (
+                                <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+                                    <span className="material-symbols-outlined text-[14px]">event</span>
+                                    {formatDate(task.due_date)}
+                                </div>
+                            )}
+
+                            {/* Forgive button if pending */}
+                            {!task.is_completed && task.assignee_id === currentUser.id && !isOpcional && (
+                                <button
+                                    onClick={() => handleUseJoker(task)}
+                                    className="flex items-center gap-1 px-2 py-1 bg-purple-500/10 text-purple-500 border border-purple-500/20 rounded-lg text-[9px] font-black hover:bg-purple-500/20 transition-all uppercase"
+                                >
+                                    🃏 Perdonar
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Action: Delete (Admin only) */}
+                        {isAdmin && (
+                            <button
+                                onClick={() => deleteTask(task.id)}
+                                className="absolute top-0 right-0 p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                                <span className="material-symbols-outlined text-lg font-variation-settings-fill-0">delete</span>
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -426,80 +513,34 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
                         <p className="text-slate-500 font-bold">¡Todo listo por ahora!</p>
                     </div>
                 ) : (
-                    <div className="space-y-3">
-                        {tasks.map(task => (
-                            <div key={task.id} className={`group bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-all ${task.is_completed ? 'opacity-60 grayscale-[0.5]' : 'hover:shadow-md hover:border-primary/20'}`}>
-                                <div className="flex items-start gap-3">
-                                    <button
-                                        onClick={() => toggleTask(task)}
-                                        className={`mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${task.is_completed ? 'bg-primary border-primary text-white' : 'border-slate-300 dark:border-slate-600 hover:border-primary'}`}
-                                    >
-                                        {task.is_completed && <span className="material-symbols-outlined text-sm font-bold">check</span>}
-                                    </button>
-                                    <div className="flex-1 min-w-0 pr-10 relative">
-                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                            <h3 className={`font-bold text-slate-900 dark:text-slate-100 line-clamp-1 ${task.is_completed ? 'line-through opacity-50' : ''}`}>
-                                                {task.title}
-                                            </h3>
-                                            {task.is_daily && (
-                                                <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-[10px] font-black uppercase tracking-tighter shadow-sm border border-blue-100 dark:border-blue-800 animate-pulse">
-                                                    <span className="material-symbols-outlined text-[12px]">sync</span>
-                                                    Diaria
-                                                </div>
-                                            )}
-                                            <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-lg text-[10px] font-bold border border-yellow-200 dark:border-yellow-700/50">
-                                                <span>🪙</span>
-                                                <span>{task.points}</span>
-                                            </div>
-                                        </div>
-                                        {task.description && <p className="text-sm text-slate-500 mb-2 line-clamp-1 italic">{task.description}</p>}
-
-                                        <div className="flex items-center gap-3">
-                                            {task.family_members && (
-                                                <div
-                                                    onClick={() => setSelectedMemberForPet(task.family_members as Member)}
-                                                    className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900/50 pr-2 rounded-full border border-slate-100 dark:border-slate-700 cursor-pointer hover:bg-slate-100 transition-colors"
-                                                >
-                                                    <PetAvatar member={task.family_members as Member} size="sm" isInteractive={false} />
-                                                    <div className="flex flex-col">
-                                                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 truncate max-w-[80px]">{task.family_members.pet_name || task.family_members.name}</span>
-                                                        {(task.family_members as any).hidden_until && new Date((task.family_members as any).hidden_until) > new Date() && (
-                                                            <span className="text-[8px] font-black text-primary uppercase">🌫️ Oculto</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
-                                            {task.due_date && (
-                                                <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">
-                                                    <span className="material-symbols-outlined text-[14px]">event</span>
-                                                    {formatDate(task.due_date)}
-                                                </div>
-                                            )}
-
-                                            {/* Forgive button if pending */}
-                                            {!task.is_completed && task.assignee_id === currentUser.id && (
-                                                <button
-                                                    onClick={() => handleUseJoker(task)}
-                                                    className="flex items-center gap-1 px-2 py-1 bg-purple-500/10 text-purple-500 border border-purple-500/20 rounded-lg text-[9px] font-black hover:bg-purple-500/20 transition-all uppercase"
-                                                >
-                                                    🃏 Perdonar
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        {/* Action: Delete (Admin only) */}
-                                        {isAdmin && (
-                                            <button
-                                                onClick={() => deleteTask(task.id)}
-                                                className="absolute top-0 right-0 p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <span className="material-symbols-outlined text-lg font-variation-settings-fill-0">delete</span>
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
+                    <div className="space-y-8">
+                        <div>
+                            <h2 className="text-sm font-black uppercase tracking-widest text-red-500 mb-4 flex items-center gap-2">
+                                <span className="material-symbols-outlined font-variation-settings-fill-1">warning</span>
+                                Misiones Principales
+                            </h2>
+                            <div className="space-y-3">
+                                {tasks.filter(t => !t.tipo_mision || t.tipo_mision === 'obligatoria').length === 0 ? (
+                                    <p className="text-slate-400 text-sm italic">No hay misiones principales pendientes.</p>
+                                ) : (
+                                    tasks.filter(t => !t.tipo_mision || t.tipo_mision === 'obligatoria').map(renderTaskCard)
+                                )}
                             </div>
-                        ))}
+                        </div>
+
+                        <div>
+                            <h2 className="text-sm font-black uppercase tracking-widest text-yellow-500 mb-4 flex items-center gap-2 mt-8">
+                                <span className="material-symbols-outlined font-variation-settings-fill-1">star</span>
+                                Misiones Secundarias
+                            </h2>
+                            <div className="space-y-3">
+                                {tasks.filter(t => t.tipo_mision === 'opcional').length === 0 ? (
+                                    <p className="text-slate-400 text-sm italic">No hay misiones secundarias disponibles.</p>
+                                ) : (
+                                    tasks.filter(t => t.tipo_mision === 'opcional').map(renderTaskCard)
+                                )}
+                            </div>
+                        </div>
                     </div>
                 )}
             </main>
@@ -604,6 +645,26 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
                                         {newTaskReminder && <span className="material-symbols-outlined text-sm font-black text-[16px]">check</span>}
                                     </div>
                                     <span className={`text-sm font-black ${newTaskReminder ? 'text-primary' : 'text-slate-400'}`}>RECORDATORIO</span>
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-[32px] border border-slate-100 dark:border-slate-800">
+                                <label className="block text-xs font-black uppercase text-slate-400 tracking-widest mb-4 ml-1">Tipo de Misión</label>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <button
+                                        onClick={() => setNewTaskTipo('obligatoria')}
+                                        className={`p-3 rounded-2xl border-2 font-bold transition-all flex items-center justify-center gap-2 ${newTaskTipo === 'obligatoria' ? 'border-red-500 bg-red-500/10 text-red-600' : 'border-slate-200 dark:border-slate-700 text-slate-400'}`}
+                                    >
+                                        <span className="material-symbols-outlined font-variation-settings-fill-1 text-sm">warning</span>
+                                        Obligatoria
+                                    </button>
+                                    <button
+                                        onClick={() => setNewTaskTipo('opcional')}
+                                        className={`p-3 rounded-2xl border-2 font-bold transition-all flex items-center justify-center gap-2 ${newTaskTipo === 'opcional' ? 'border-yellow-500 bg-yellow-500/10 text-yellow-600' : 'border-slate-200 dark:border-slate-700 text-slate-400'}`}
+                                    >
+                                        <span className="material-symbols-outlined font-variation-settings-fill-1 text-sm">star</span>
+                                        Opcional
+                                    </button>
                                 </div>
                             </div>
                         </div>
