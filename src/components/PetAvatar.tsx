@@ -40,6 +40,7 @@ interface Medal {
 
 const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isInteractive = true, fullBody = false }) => {
     const [medallas, setMedallas] = useState<Medal[]>([]);
+    const [imageError, setImageError] = useState(false);
 
     useEffect(() => {
         if (!member?.id) return;
@@ -160,15 +161,18 @@ const PetAvatar: React.FC<PetAvatarProps> = ({ member, onClick, size = 'md', isI
                 <div className="absolute inset-0 z-10 select-none bg-transparent pointer-events-none flex items-center justify-center">
                     {member.selected_skin ? (
                         <div className="w-full h-full flex items-center justify-center text-[1.2em]">{member.selected_skin}</div>
-                    ) : member.avatar_url?.startsWith('http') ? (
+                    ) : (member.avatar_url?.startsWith('http') && !imageError) ? (
                         <img
                             src={member.avatar_url}
                             alt={member.name}
+                            onError={() => setImageError(true)}
                             className="absolute inset-0 w-full h-full object-contain bg-transparent"
                             style={member.active_vfx?.length ? { filter: 'drop-shadow(0px 0px 8px rgba(255,215,0,0.8))' } : {}}
                         />
                     ) : (
-                        <div className="w-full h-full flex items-center justify-center text-[1.2em]">{member.avatar_url || '🐾'}</div>
+                        <div className="w-full h-full rounded-full bg-slate-300 dark:bg-slate-600 flex items-center justify-center text-slate-500 overflow-hidden shadow-inner border-2 border-slate-200">
+                            <span className="material-symbols-outlined text-4xl opacity-50 font-variation-settings-fill-1 drop-shadow-sm">person</span>
+                        </div>
                     )}
                 </div>
 
