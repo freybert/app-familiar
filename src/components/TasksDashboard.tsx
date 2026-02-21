@@ -37,6 +37,8 @@ interface Task {
     points: number;
     family_members?: Member; // Joined data
     tipo_mision?: 'obligatoria' | 'opcional';
+    evidencia_url?: string;
+    fecha_completada?: string;
 }
 
 interface TasksDashboardProps {
@@ -66,6 +68,7 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
     const [newTaskPoints, setNewTaskPoints] = useState('10');
     const [streakAlertShown, setStreakAlertShown] = useState(false);
     const [newTaskTipo, setNewTaskTipo] = useState<'obligatoria' | 'opcional'>('obligatoria');
+    const [uploadingTaskId, setUploadingTaskId] = useState<number | null>(null);
 
     useEffect(() => {
         fetchData();
@@ -288,6 +291,66 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
         }
     };
 
+    const handleUploadAndComplete = async (e: React.ChangeEvent<HTMLInputElement>, task: Task) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            setUploadingTaskId(task.id);
+
+            // Subir la foto al bucket "evidencias" en Supabase Storage
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${task.id}-${Date.now()}.${fileExt}`;
+            const filePath = `${currentUser.id}/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('evidencias')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            // Obtener la URL pública de la imagen
+            const { data: publicUrlData } = supabase.storage
+                .from('evidencias')
+                .getPublicUrl(filePath);
+
+            const evidenciaUrl = publicUrlData.publicUrl;
+            const fechaCompletada = new Date().toISOString();
+
+            // Lógica de puntos
+            const member = members.find(m => m.id === task.assignee_id);
+            const hasActiveStreak = member && (member.streak_count || 0) >= 3;
+            const pointsChange = hasActiveStreak ? (task.points || 10) * 2 : (task.points || 10);
+
+            // Update user points and mark task as completed
+            const { error: taskError } = await supabase.from('tasks').update({
+                is_completed: true,
+                evidencia_url: evidenciaUrl,
+                fecha_completada: fechaCompletada
+            }).eq('id', task.id);
+
+            if (taskError) throw taskError;
+
+            setTasks(tasks.map(t => t.id === task.id ? { ...t, is_completed: true, evidencia_url: evidenciaUrl, fecha_completada: fechaCompletada } : t));
+
+            if (task.assignee_id) {
+                const { data: memberData } = await supabase.from('family_members').select('total_points').eq('id', task.assignee_id).single();
+                const newTotalPoints = (memberData?.total_points || 0) + pointsChange;
+                await supabase.from('family_members').update({ total_points: newTotalPoints }).eq('id', task.assignee_id);
+                setMembers(members.map(m => m.id === task.assignee_id ? { ...m, total_points: newTotalPoints } : m));
+            }
+
+            alert('¡Puntos ganados! Evidencia subida con éxito.');
+        } catch (error: any) {
+            console.error('Error uploading evidence:', error);
+            alert('Error al subir la evidencia: ' + error.message);
+        } finally {
+            setUploadingTaskId(null);
+            // Clear input
+            e.target.value = '';
+        }
+    };
+
     const toggleTask = async (task: Task) => {
         const isCompleting = !task.is_completed;
         const member = members.find(m => m.id === task.assignee_id);
@@ -347,12 +410,30 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
         return (
             <div key={task.id} className={`group bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border-2 ${isOpcional ? 'border-yellow-400/50 dark:border-yellow-600/50' : 'border-red-400/50 dark:border-red-500/50'} transition-all ${task.is_completed ? 'opacity-60 grayscale-[0.5]' : 'hover:shadow-md hover:scale-[1.01]'}`}>
                 <div className="flex items-start gap-3">
-                    <button
-                        onClick={() => toggleTask(task)}
-                        className={`mt-1 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${task.is_completed ? 'bg-primary border-primary text-white' : 'border-slate-300 dark:border-slate-600 hover:border-primary'}`}
-                    >
-                        {task.is_completed && <span className="material-symbols-outlined text-sm font-bold">check</span>}
-                    </button>
+                    <div className="relative">
+                        {uploadingTaskId === task.id ? (
+                            <div className="mt-1 w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin flex items-center justify-center"></div>
+                        ) : task.is_completed ? (
+                            <button
+                                onClick={() => toggleTask(task)}
+                                className="mt-1 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors bg-primary border-primary text-white"
+                                title="Desmarcar Tarea"
+                            >
+                                <span className="material-symbols-outlined text-sm font-bold">check</span>
+                            </button>
+                        ) : (
+                            <label className="mt-1 w-8 h-8 rounded-full border-2 border-slate-300 dark:border-slate-600 hover:border-primary flex items-center justify-center cursor-pointer overflow-hidden transition-colors text-slate-400 hover:text-primary group/upload relative" title="Tomar Foto y Completar">
+                                <span className="material-symbols-outlined text-sm font-bold">photo_camera</span>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                    onChange={(e) => handleUploadAndComplete(e, task)}
+                                />
+                            </label>
+                        )}
+                    </div>
                     <div className="flex-1 min-w-0 pr-10 relative">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                             {isOpcional ? (
