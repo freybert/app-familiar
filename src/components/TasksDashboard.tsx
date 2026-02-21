@@ -291,7 +291,10 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
                 last_reset_date: newTaskDaily ? new Date().toISOString().split('T')[0] : null,
                 reminder_active: newTaskReminder,
                 points: parseInt(newTaskPoints) || 10,
-                tipo_mision: newTaskTipo
+                tipo_mision: newTaskTipo,
+                robada: false,
+                evidencia_url: null,
+                fecha_completada: null
             }])
             .select(`
                 *,

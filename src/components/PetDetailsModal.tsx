@@ -81,16 +81,26 @@ const PetDetailsModal: React.FC<PetDetailsModalProps> = ({ member, isOpen, onClo
 
         try {
             // 1. Activation Logic based on item type/name
-            if (invItem.name.includes('Escudo')) {
-                const { error } = await supabase
-                    .from('family_members')
-                    .update({ shield_hp: (member.shield_hp || 0) + 1 })
-                    .eq('id', member.id);
-                if (error) throw error;
-                alert('🛡️ ¡Escudo activado! +1 HP añadido.');
-            } else if (invItem.category === 'voucher') {
-                alert(`🎟️ VALE ACTIVADO: "${invItem.name}".\n\nMuéstrale esto al Administrador para canjear tu beneficio real. El objeto ha sido consumido.`);
-                // Notify Admin (optional: could insert into a notifications table)
+            if (invItem.category === 'poder' || invItem.name.includes('Escudo')) {
+                if (invItem.name.includes('Escudo')) {
+                    const { error } = await supabase
+                        .from('family_members')
+                        .update({ shield_hp: (member.shield_hp || 0) + 1 })
+                        .eq('id', member.id);
+                    if (error) throw error;
+                    alert('🛡️ ¡Escudo activado! +1 HP añadido.');
+                } else if (invItem.name.includes('Doble')) {
+                    if (member.double_points_until && new Date(member.double_points_until) > new Date()) {
+                        alert('⚡ ¡Ya tienes un Poder x2 activo! Espera a que termine para usar otro.');
+                        return; // Exit without consuming
+                    }
+                    const until = new Date();
+                    until.setHours(until.getHours() + (invItem.metadata?.duration || 24));
+                    await supabase.from('family_members').update({ double_points_until: until.toISOString() }).eq('id', member.id);
+                    alert('⚡ ¡Poder x2 activado por 24 horas!');
+                }
+            } else if (invItem.category === 'privilegio' || invItem.category === 'voucher') {
+                alert(`🎟️ BENEFICIO ACTIVADO: "${invItem.name}".\n\nMuéstrale esto al Administrador para canjear tu beneficio real. El objeto ha sido consumido.`);
             } else if (invItem.category === 'travesura') {
                 if (invItem.name.includes('Niebla')) {
                     const until = new Date();
@@ -106,6 +116,7 @@ const PetDetailsModal: React.FC<PetDetailsModalProps> = ({ member, isOpen, onClo
                     const until = new Date();
                     until.setHours(until.getHours() + (invItem.metadata?.duration || 24));
                     await supabase.from('family_members').update({ double_points_until: until.toISOString() }).eq('id', member.id);
+                    alert('⚡ ¡Poder x2 activado por 24 horas!');
                 }
             } else if (invItem.category === 'vfx') {
                 const currentVfx = member.active_vfx || [];
