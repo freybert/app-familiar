@@ -308,8 +308,10 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
                 )
             `);
 
-        if (error) console.error('Error adding task:', error);
-        else {
+        if (error) {
+            console.error('Detalles del error al crear tarea:', error);
+            alert(`❌ Error al crear la tarea:\nMensaje: ${error.message}\nDetalles: ${error.details || 'N/A'}\nAyuda: ${error.hint || 'N/A'}`);
+        } else {
             if (data) setTasks([data[0], ...tasks]);
             closeModal();
         }
