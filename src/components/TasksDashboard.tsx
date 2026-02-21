@@ -131,7 +131,7 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
         }, 60000); // Check every minute
 
         return () => clearInterval(streakInterval);
-    }, [currentUser, tasks, members, streakAlertShown, isAdmin]);
+    }, [currentUser, isAdmin]);
 
     const fetchData = async () => {
         setLoading(true);
@@ -398,7 +398,8 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
             const member = members.find(m => m.id === task.assignee_id);
             const hasActiveStreak = member && (member.streak_count || 0) >= 3;
             const pointsChange = hasActiveStreak ? (task.points || 10) * 2 : (task.points || 10);
-            const finalPoints = task.robada ? pointsChange * 2 : pointsChange;
+            const isRobada = task?.robada || false;
+            const finalPoints = isRobada ? pointsChange * 2 : pointsChange;
 
             // Update user points and mark task as completed
             const { error: taskError } = await supabase.from('tasks').update({
@@ -418,7 +419,7 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
                 setMembers(members.map(m => m.id === task.assignee_id ? { ...m, total_points: newTotalPoints } : m));
             }
 
-            if (task.robada) {
+            if (isRobada) {
                 alert('¡Robo exitoso! Puntos x2. ¡Puntos ganados! Evidencia subida con éxito.');
             } else {
                 alert('¡Puntos ganados! Evidencia subida con éxito.');
@@ -487,15 +488,15 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
     };
 
     const renderTaskCard = (task: Task) => {
-        const isOpcional = (task.tipo_mision || 'obligatoria') === 'opcional';
+        const isOpcional = (task?.tipo_mision || 'obligatoria') === 'opcional';
 
         return (
-            <div key={task.id} className={`group bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border-2 ${isOpcional ? 'border-yellow-400/50 dark:border-yellow-600/50' : 'border-red-400/50 dark:border-red-500/50'} transition-all ${task.is_completed ? 'opacity-60 grayscale-[0.5]' : 'hover:shadow-md hover:scale-[1.01]'}`}>
+            <div key={task.id} className={`group bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border-2 ${isOpcional ? 'border-yellow-400/50 dark:border-yellow-600/50' : 'border-red-400/50 dark:border-red-500/50'} transition-all ${task?.is_completed ? 'opacity-60 grayscale-[0.5]' : 'hover:shadow-md hover:scale-[1.01]'}`}>
                 <div className="flex items-start gap-3">
                     <div className="relative">
                         {uploadingTaskId === task.id ? (
                             <div className="mt-1 w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin flex items-center justify-center"></div>
-                        ) : task.is_completed ? (
+                        ) : task?.is_completed ? (
                             <button
                                 onClick={() => toggleTask(task)}
                                 className="mt-1 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors bg-primary border-primary text-white"
@@ -523,10 +524,10 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
                             ) : (
                                 <span className="text-red-500 material-symbols-outlined text-sm font-variation-settings-fill-1">priority_high</span>
                             )}
-                            <h3 className={`font-bold text-slate-900 dark:text-slate-100 line-clamp-1 ${task.is_completed ? 'line-through opacity-50' : ''}`}>
+                            <h3 className={`font-bold text-slate-900 dark:text-slate-100 line-clamp-1 ${task?.is_completed ? 'line-through opacity-50' : ''}`}>
                                 {task.title}
                             </h3>
-                            {task.is_daily && (
+                            {task?.is_daily && (
                                 <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-[10px] font-black uppercase tracking-tighter shadow-sm border border-blue-100 dark:border-blue-800 animate-pulse">
                                     <span className="material-symbols-outlined text-[12px]">sync</span>
                                     Diaria
@@ -534,7 +535,7 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
                             )}
                             <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-lg text-[10px] font-bold border border-yellow-200 dark:border-yellow-700/50">
                                 <span>🪙</span>
-                                <span>{task.points}</span>
+                                <span>{task.points || 0}</span>
                             </div>
                         </div>
                         {task.description && <p className="text-sm text-slate-500 mb-2 line-clamp-1 italic">{task.description}</p>}
@@ -562,7 +563,7 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
                             )}
 
                             {/* Action: Robar (If assigned to someone else and not completed) */}
-                            {!task.is_completed && task.assignee_id !== currentUser.id && (
+                            {!task?.is_completed && task.assignee_id !== currentUser.id && (
                                 <button
                                     onClick={() => handleRobarTarea(task)}
                                     className="flex items-center gap-1 px-2 py-1 bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg text-[9px] font-black hover:bg-red-500/20 transition-all uppercase"
@@ -573,7 +574,7 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
                             )}
 
                             {/* Forgive button if pending */}
-                            {!task.is_completed && task.assignee_id === currentUser.id && !isOpcional && (
+                            {!task?.is_completed && task.assignee_id === currentUser.id && !isOpcional && (
                                 <button
                                     onClick={() => handleUseJoker(task)}
                                     className="flex items-center gap-1 px-2 py-1 bg-purple-500/10 text-purple-500 border border-purple-500/20 rounded-lg text-[9px] font-black hover:bg-purple-500/20 transition-all uppercase"
@@ -694,10 +695,10 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
                                 Misiones Principales
                             </h2>
                             <div className="space-y-3">
-                                {tasks.filter(t => (t.tipo_mision || 'obligatoria') === 'obligatoria').length === 0 ? (
+                                {tasks.filter(t => (t?.tipo_mision || 'obligatoria') === 'obligatoria').length === 0 ? (
                                     <p className="text-slate-400 text-sm italic">No hay misiones principales pendientes.</p>
                                 ) : (
-                                    tasks.filter(t => (t.tipo_mision || 'obligatoria') === 'obligatoria').map(renderTaskCard)
+                                    tasks.filter(t => (t?.tipo_mision || 'obligatoria') === 'obligatoria').map(renderTaskCard)
                                 )}
                             </div>
                         </div>
@@ -708,10 +709,10 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
                                 Misiones Secundarias
                             </h2>
                             <div className="space-y-3">
-                                {tasks.filter(t => (t.tipo_mision || 'obligatoria') === 'opcional').length === 0 ? (
+                                {tasks.filter(t => (t?.tipo_mision || 'obligatoria') === 'opcional').length === 0 ? (
                                     <p className="text-slate-400 text-sm italic">No hay misiones secundarias disponibles.</p>
                                 ) : (
-                                    tasks.filter(t => (t.tipo_mision || 'obligatoria') === 'opcional').map(renderTaskCard)
+                                    tasks.filter(t => (t?.tipo_mision || 'obligatoria') === 'opcional').map(renderTaskCard)
                                 )}
                             </div>
                         </div>
