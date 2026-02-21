@@ -9,6 +9,7 @@ interface ShopItem {
     icon: string;
     category: string;
     metadata?: any;
+    activo?: boolean;
 }
 
 interface Member {
@@ -65,6 +66,7 @@ const ShopView: React.FC<ShopViewProps> = ({ currentUser }) => {
         const { data: itemsData } = await supabase
             .from('shop_items')
             .select('*')
+            .eq('activo', true)
             .order('cost', { ascending: true });
 
         const { data: inventoryData } = await supabase
@@ -183,6 +185,21 @@ const ShopView: React.FC<ShopViewProps> = ({ currentUser }) => {
         }
     };
 
+    const handleDeleteItem = async (id: string, name: string) => {
+        if (!window.confirm(`¿Seguro que quieres eliminar "${name}" del bazar? Los que ya lo tienen no lo perderán.`)) return;
+
+        try {
+            const { error } = await supabase.from('shop_items').update({ activo: false }).eq('id', id);
+            if (error) throw error;
+
+            setItems(items.filter(i => i.id !== id));
+            alert(`Bazar actualizado. "${name}" ha sido retirado.`);
+        } catch (err: any) {
+            console.error('Error soft deleting item:', err);
+            alert('Hubo un error al eliminar el artículo.');
+        }
+    };
+
     const filteredItems = selectedCategory === 'all'
         ? items
         : items.filter(i => i.category === selectedCategory);
@@ -274,13 +291,22 @@ const ShopView: React.FC<ShopViewProps> = ({ currentUser }) => {
                                             <p className="text-xl font-black text-slate-900 dark:text-slate-100 leading-none">🪙 {item.cost}</p>
                                         </div>
                                         {currentUser.is_admin && (
-                                            <button
-                                                onClick={() => handleEditPrice(item)}
-                                                className="mb-[2px] w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                                                title="Administrador: Editar Precio"
-                                            >
-                                                <span className="material-symbols-outlined text-[14px] text-slate-500">edit</span>
-                                            </button>
+                                            <div className="flex items-center gap-1 mb-[2px]">
+                                                <button
+                                                    onClick={() => handleEditPrice(item)}
+                                                    className="w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                                                    title="Administrador: Editar Precio"
+                                                >
+                                                    <span className="material-symbols-outlined text-[14px] text-slate-500">edit</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteItem(item.id, item.name)}
+                                                    className="w-6 h-6 flex items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-800/50 transition-colors"
+                                                    title="Administrador: Eliminar"
+                                                >
+                                                    <span className="material-symbols-outlined text-[14px] text-red-500">delete</span>
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                     <button

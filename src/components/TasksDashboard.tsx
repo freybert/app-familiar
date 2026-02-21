@@ -39,6 +39,7 @@ interface Task {
     tipo_mision?: 'obligatoria' | 'opcional';
     evidencia_url?: string;
     fecha_completada?: string;
+    robada?: boolean;
 }
 
 interface TasksDashboardProps {
@@ -250,6 +251,26 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
         }
     };
 
+    const handleRobarTarea = async (task: Task) => {
+        if (!window.confirm(`¿Quieres robar la tarea "${task.title}"?`)) return;
+
+        try {
+            const { error } = await supabase.from('tasks').update({
+                assignee_id: currentUser.id,
+                robada: true
+            }).eq('id', task.id);
+
+            if (error) throw error;
+
+            setTasks(tasks.map(t => t.id === task.id ? { ...t, assignee_id: currentUser.id, robada: true } : t));
+            alert('¡Tarea robada con éxito! Ahora es tuya.');
+            fetchData();
+        } catch (err: any) {
+            console.error('Error al robar tarea:', err);
+            alert('Error al robar tarea.');
+        }
+    };
+
     const addTask = async () => {
         if (!newTaskTitle.trim()) return;
         if (!newTaskAssignee) {
@@ -321,6 +342,7 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
             const member = members.find(m => m.id === task.assignee_id);
             const hasActiveStreak = member && (member.streak_count || 0) >= 3;
             const pointsChange = hasActiveStreak ? (task.points || 10) * 2 : (task.points || 10);
+            const finalPoints = task.robada ? pointsChange * 2 : pointsChange;
 
             // Update user points and mark task as completed
             const { error: taskError } = await supabase.from('tasks').update({
@@ -335,12 +357,16 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
 
             if (task.assignee_id) {
                 const { data: memberData } = await supabase.from('family_members').select('total_points').eq('id', task.assignee_id).single();
-                const newTotalPoints = (memberData?.total_points || 0) + pointsChange;
+                const newTotalPoints = (memberData?.total_points || 0) + finalPoints;
                 await supabase.from('family_members').update({ total_points: newTotalPoints }).eq('id', task.assignee_id);
                 setMembers(members.map(m => m.id === task.assignee_id ? { ...m, total_points: newTotalPoints } : m));
             }
 
-            alert('¡Puntos ganados! Evidencia subida con éxito.');
+            if (task.robada) {
+                alert('¡Robo exitoso! Puntos x2. ¡Puntos ganados! Evidencia subida con éxito.');
+            } else {
+                alert('¡Puntos ganados! Evidencia subida con éxito.');
+            }
         } catch (error: any) {
             console.error('Error uploading evidence:', error);
             alert('Error al subir la evidencia: ' + error.message);
@@ -477,6 +503,17 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
                                     <span className="material-symbols-outlined text-[14px]">event</span>
                                     {formatDate(task.due_date)}
                                 </div>
+                            )}
+
+                            {/* Action: Robar (If assigned to someone else and not completed) */}
+                            {!task.is_completed && task.assignee_id !== currentUser.id && (
+                                <button
+                                    onClick={() => handleRobarTarea(task)}
+                                    className="flex items-center gap-1 px-2 py-1 bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg text-[9px] font-black hover:bg-red-500/20 transition-all uppercase"
+                                >
+                                    <span className="material-symbols-outlined text-[12px] font-variation-settings-fill-1">local_police</span>
+                                    Robar Tarea
+                                </button>
                             )}
 
                             {/* Forgive button if pending */}
