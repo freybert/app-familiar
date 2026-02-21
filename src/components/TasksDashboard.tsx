@@ -169,7 +169,12 @@ const TasksDashboard: React.FC<TasksDashboardProps> = ({ currentUser }) => {
                 `)
                 .order('created_at', { ascending: false });
 
-            if (taskErr) throw taskErr;
+            if (taskErr) {
+                console.error("Error descargando:", taskErr);
+                throw taskErr;
+            }
+
+            console.log("Datos crudos de Supabase:", tasksData);
 
             setTasks(tasksData || []);
             const now = new Date();
